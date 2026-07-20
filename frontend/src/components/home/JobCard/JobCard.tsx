@@ -1,6 +1,8 @@
-import Card from "../../../components/ui/Card/Card";
-
-import { BadgeCheck, Heart, MapPin } from "lucide-react";
+import {Heart, MapPin } from "lucide-react";
+import Avatar from "@/components/ui/Avatar";
+import Badge from "@/components/ui/Badge";
+import Tag from '@/components/ui/Tag';
+import Card from "@/components/ui/Card/Card";
 
 export interface JobCardProps {
   company: string;
@@ -32,11 +34,10 @@ export default function JobCard({
 
           {/* Company Avatar */}
 
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 text-xl font-bold text-white">
-
-            {company.charAt(0)}
-
-          </div>
+          <Avatar
+                name={company}
+                size="lg"
+            />
 
           <div>
 
@@ -49,10 +50,9 @@ export default function JobCard({
               </h3>
 
               {verified && (
-                <BadgeCheck
-                  size={18}
-                  className="text-blue-600"
-                />
+                <Badge variant="blue">
+                    企业认证
+                </Badge>
               )}
 
             </div>
@@ -103,21 +103,10 @@ export default function JobCard({
       {/* Tags */}
 
       <div className="mt-6 flex flex-wrap gap-2">
-
         {tags.map((tag) => (
-
-          <span
-            key={tag}
-            className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-600"
-          >
-
-            {tag}
-
-          </span>
-
+            <Tag key={tag}>{tag}</Tag>
         ))}
-
-      </div>
+        </div>
 
     </Card>
   );
