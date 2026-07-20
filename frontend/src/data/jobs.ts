@@ -1,5 +1,6 @@
 export const jobs = [
   {
+    id:1,
     company: "Mercari",
     title: "Java Backend Engineer",
     location: "东京 · 涩谷",
@@ -14,6 +15,7 @@ export const jobs = [
     ],
   },
   {
+    id:2,
     company: "PayPay",
     title: "Frontend Engineer",
     location: "东京 · 港区",
