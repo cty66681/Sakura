@@ -6,6 +6,7 @@ import FeedSection from "@/components/home/FeedSection";
 import HouseSection from "@/components/home/HouseSection";
 import ExperienceSection from "@/components/home/ExperienceSection";
 import SchoolSection from "@/components/home/SchoolSection";
+import ScamSection from "@/components/home/ScamSection";
 
 export default function Home() {
   return (
@@ -19,6 +20,7 @@ export default function Home() {
         <HouseSection />
         <SchoolSection />
         <ExperienceSection />
+        <ScamSection />
       </main>
     </>
   );

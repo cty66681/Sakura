@@ -25,7 +25,7 @@ const navs = [
     href: "/scam",
   },
     {
-    title: "日本升学",
+    title: "升学",
     href: "/schools",
   },
 ];

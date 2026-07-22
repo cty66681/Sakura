@@ -1,11 +1,14 @@
 import Card from "@/components/ui/Card";
 import Tag from "@/components/ui/Tag";
+import Button from "@/components/ui/Button";
+import { Clock3, User } from "lucide-react";
 
 export interface ExperienceCardProps {
   title: string;
   summary: string;
   author: string;
   publishTime: string;
+  readTime: string;
   cover: string;
   tags: string[];
 }
@@ -15,6 +18,7 @@ export default function ExperienceCard({
   summary,
   author,
   publishTime,
+  readTime,
   cover,
   tags,
 }: ExperienceCardProps) {
@@ -33,7 +37,7 @@ export default function ExperienceCard({
           {title}
         </h3>
 
-        <p className="mt-3 text-slate-500">
+        <p className="mt-4 text-slate-500">
           {summary}
         </p>
 
@@ -45,10 +49,27 @@ export default function ExperienceCard({
           ))}
         </div>
 
-        <div className="mt-6 flex justify-between text-sm text-slate-400">
-          <span>{author}</span>
-          <span>{publishTime}</span>
+        <div className="mt-6 flex items-center justify-between text-sm text-slate-400">
+
+          <div className="flex items-center gap-2">
+            <User size={16} />
+            {author}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Clock3 size={16} />
+            {readTime}
+          </div>
+
         </div>
+
+        <p className="mt-3 text-xs text-slate-400">
+          {publishTime}
+        </p>
+
+        <Button className="mt-6 w-full">
+          阅读全文
+        </Button>
 
       </div>
 
