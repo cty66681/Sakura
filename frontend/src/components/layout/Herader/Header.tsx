@@ -24,6 +24,10 @@ const navs = [
     title: "避坑",
     href: "/scam",
   },
+    {
+    title: "日本升学",
+    href: "/schools",
+  },
 ];
 
 export default function Header() {

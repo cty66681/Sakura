@@ -3,6 +3,9 @@ import Hero from "@/components/home/Hero";
 import JobSection from "@/components/home/JobSection/JobSection";
 import Button from "@/components/ui/Button";
 import FeedSection from "@/components/home/FeedSection";
+import HouseSection from "@/components/home/HouseSection";
+import ExperienceSection from "@/components/home/ExperienceSection";
+import SchoolSection from "@/components/home/SchoolSection";
 
 export default function Home() {
   return (
@@ -13,6 +16,9 @@ export default function Home() {
         <Hero />
         <FeedSection />
         <JobSection />
+        <HouseSection />
+        <SchoolSection />
+        <ExperienceSection />
       </main>
     </>
   );
