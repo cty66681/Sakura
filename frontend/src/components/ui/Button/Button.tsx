@@ -1,52 +1,49 @@
 import { ButtonHTMLAttributes, forwardRef } from "react";
 import { cn } from "@/lib/utils";
 
-type Variant =
-  | "default"
-  | "outline"
-  | "ghost"
-  | "danger";
-
-type Size =
-  | "sm"
-  | "md"
-  | "lg";
-
-interface ButtonProps
+export interface ButtonProps
   extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: Variant;
-  size?: Size;
+  variant?: "primary" | "secondary" | "outline" | "ghost";
 }
 
-const variants = {
-  default:
-    "bg-blue-600 text-white hover:bg-blue-700",
+const variantClass = {
+  primary: `
+    bg-blue-600
+    text-white
+    hover:bg-blue-700
+    hover:-translate-y-1
+    hover:shadow-xl
+  `,
 
-  outline:
-    "border border-slate-300 bg-white text-slate-700 hover:border-blue-500 hover:text-blue-600",
+  secondary: `
+    bg-slate-900
+    text-white
+    hover:bg-black
+    hover:-translate-y-1
+    hover:shadow-xl
+  `,
 
-  ghost:
-    "bg-transparent text-slate-700 hover:bg-slate-100",
+  outline: `
+    border
+    border-slate-300
+    bg-white
+    text-slate-800
+    hover:bg-slate-100
+    hover:-translate-y-1
+  `,
 
-  danger:
-    "bg-red-600 text-white hover:bg-red-700",
-};
-
-const sizes = {
-  sm: "h-9 px-4 text-sm",
-
-  md: "h-11 px-5 text-sm",
-
-  lg: "h-12 px-6 text-base",
+  ghost: `
+    bg-transparent
+    text-slate-700
+    hover:bg-slate-100
+  `,
 };
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   (
     {
       className,
-      variant = "default",
-      size = "md",
-      children,
+      variant = "primary",
       ...props
     },
     ref
@@ -55,15 +52,31 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         className={cn(
-          "inline-flex items-center justify-center rounded-xl font-medium transition-all duration-200 disabled:pointer-events-none disabled:opacity-50",
-          variants[variant],
-          sizes[size],
+          `
+          inline-flex
+          items-center
+          justify-center
+
+          h-12
+          px-6
+
+          rounded-2xl
+
+          text-sm
+          font-semibold
+
+          transition-all
+          duration-300
+
+          active:scale-95
+          disabled:pointer-events-none
+          disabled:opacity-50
+          `,
+          variantClass[variant],
           className
         )}
         {...props}
-      >
-        {children}
-      </button>
+      />
     );
   }
 );
