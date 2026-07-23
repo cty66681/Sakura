@@ -1,4 +1,5 @@
 import Header from "@/components/layout/Herader";
+import Footer from "@/components/layout/Footer";
 import Hero from "@/components/home/Hero";
 import JobSection from "@/components/home/JobSection/JobSection";
 import Button from "@/components/ui/Button";
@@ -24,6 +25,7 @@ export default function Home() {
         <ScamSection />
         <AiToolSection />
       </main>
+      <Footer />
     </>
   );
 }
