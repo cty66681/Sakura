@@ -23,7 +23,7 @@ export default function UniversityPage() {
             "私立大学",
             "大学院",
             "QS排名",
-            "EJU",
+            "EJU" ,
             "文科",
             "理科",
             "医学",
