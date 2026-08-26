@@ -13,7 +13,7 @@ import {
 
 import Container from "@/components/layout/Container";
 import JobCard from "@/components/home/JobCard/JobCard";
-import Header from "@/components/layout/Herader";
+import Header from "@/components/layout/Hearder";
 
 
 interface Job {

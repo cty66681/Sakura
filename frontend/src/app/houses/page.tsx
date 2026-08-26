@@ -31,6 +31,9 @@ const PAGE_SIZE = 6;
 export default function HousesPage() {
   const [searchInput, setSearchInput] = useState("");
   const [keyword, setKeyword] = useState("");
+  const handleKeywordChange = (value: string) => {
+  setKeyword(value);
+};
 
   const [page, setPage] = useState(1);
 
