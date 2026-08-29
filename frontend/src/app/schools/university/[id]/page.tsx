@@ -1,92 +1,569 @@
 import Image from "next/image";
 import Link from "next/link";
-import {
-  MapPin,
-  GraduationCap,
-  Globe,
-  Star,
-  Landmark,
-  Coins,
-  ArrowLeft,
-} from "lucide-react";
+import { ArrowLeft, Globe, MapPin, Star } from "lucide-react";
 
-export default function UniversityDetailPage() {
+import UniversityInfo from "@/components/schools/university/UniversityInfo";
+import UniversityCourse from "@/components/schools/university/UniversityCourse";
+import UniversityTuition from "@/components/schools/university/UniversityTuition";
+import UniversityGallery from "@/components/schools/university/UniversityGallery";
+import UniversityReview from "@/components/schools/university/UniversityReview";
+import UniversitySidebar from "@/components/schools/university/UniversitySidebar";
+
+/* =========================================================
+   类型
+   以后接后台时，可以直接把这里移动到 types/university.ts
+========================================================= */
+
+export type UniversityDetail = {
+  id: string;
+
+  name: string;
+  englishName: string;
+
+  image: string;
+
+  location: string;
+  address: string;
+
+  type: "国立大学" | "公立大学" | "私立大学";
+
+  degree: "大学" | "大学院";
+
+  qs: number | null;
+  hensachi: number | null;
+
+  tuition: number;
+
+  eju: boolean;
+
+  rating: number;
+
+  website: string;
+
+  description: string;
+
+  tags: string[];
+};
+
+/* =========================================================
+   MOCK DATA
+
+   以后后台完成后：
+   const university = await getUniversity(id)
+
+   把这里删掉即可。
+========================================================= */
+
+const universities: UniversityDetail[] = [
+  {
+    id: "tokyo",
+
+    name: "东京大学",
+    englishName: "The University of Tokyo",
+
+    image: "/images/university/university01.jpg",
+
+    location: "东京 · 文京区",
+    address: "东京都文京区本乡7-3-1",
+
+    type: "国立大学",
+
+    degree: "大学",
+
+    qs: 28,
+    hensachi: 72,
+
+    tuition: 535800,
+
+    eju: true,
+
+    rating: 4.9,
+
+    website: "https://www.u-tokyo.ac.jp/",
+
+    description:
+      "东京大学是日本顶尖的国立综合大学之一，在科研、教育以及国际学术领域具有很高影响力。",
+
+    tags: [
+      "计算机",
+      "AI",
+      "医学",
+      "奖学金",
+      "英语课程",
+    ],
+  },
+
+  {
+    id: "waseda",
+
+    name: "早稻田大学",
+    englishName: "Waseda University",
+
+    image: "/images/university/university02.jpg",
+
+    location: "东京 · 新宿区",
+    address: "东京都新宿区户塚町1-104",
+
+    type: "私立大学",
+
+    degree: "大学",
+
+    qs: 181,
+    hensachi: 70,
+
+    tuition: 1100000,
+
+    eju: true,
+
+    rating: 4.8,
+
+    website: "https://www.waseda.jp/",
+
+    description:
+      "早稻田大学是日本具有代表性的私立综合大学之一，国际化程度较高，并拥有大量留学生。",
+
+    tags: [
+      "商科",
+      "传媒",
+      "法学",
+      "留学生宿舍",
+      "国际交流",
+    ],
+  },
+
+  {
+    id: "kyoto",
+
+    name: "京都大学",
+    englishName: "Kyoto University",
+
+    image: "/images/university/university03.jpg",
+
+    location: "京都 · 左京区",
+    address: "京都府京都市左京区吉田本町",
+
+    type: "国立大学",
+
+    degree: "大学",
+
+    qs: 46,
+    hensachi: 71,
+
+    tuition: 535800,
+
+    eju: true,
+
+    rating: 4.8,
+
+    website: "https://www.kyoto-u.ac.jp/",
+
+    description:
+      "京都大学是日本著名的研究型国立大学，在理工、医学和基础科学等领域拥有很强的研究实力。",
+
+    tags: [
+      "理工",
+      "医学",
+      "研究型",
+      "奖学金",
+    ],
+  },
+
+  {
+    id: "osaka",
+
+    name: "大阪大学",
+    englishName: "The University of Osaka",
+
+    image: "/images/university/university04.jpg",
+
+    location: "大阪 · 吹田市",
+    address: "大阪府吹田市山田丘1-1",
+
+    type: "国立大学",
+
+    degree: "大学",
+
+    qs: 80,
+    hensachi: 68,
+
+    tuition: 535800,
+
+    eju: true,
+
+    rating: 4.7,
+
+    website: "https://www.osaka-u.ac.jp/",
+
+    description:
+      "大阪大学是日本重要的研究型国立大学，在工学、医学、理学和国际研究领域具有较强实力。",
+
+    tags: [
+      "工学",
+      "医学",
+      "国际交流",
+      "研究型",
+    ],
+  },
+
+  {
+    id: "yokohama",
+
+    name: "横滨市立大学",
+    englishName: "Yokohama City University",
+
+    image: "/images/university/university05.jpg",
+
+    location: "神奈川 · 横滨市",
+    address: "神奈川县横滨市金泽区濑户22-2",
+
+    type: "公立大学",
+
+    degree: "大学",
+
+    qs: 450,
+    hensachi: 63,
+
+    tuition: 557400,
+
+    eju: true,
+
+    rating: 4.5,
+
+    website: "https://www.yokohama-cu.ac.jp/",
+
+    description:
+      "横滨市立大学是一所公立综合大学，在国际商学、数据科学以及医学领域拥有特色教育项目。",
+
+    tags: [
+      "国际商学",
+      "医学",
+      "数据科学",
+    ],
+  },
+
+  {
+    id: "nagoya",
+
+    name: "名古屋大学大学院",
+    englishName: "Nagoya University Graduate School",
+
+    image: "/images/university/university06.jpg",
+
+    location: "爱知 · 名古屋市",
+    address: "爱知县名古屋市千种区不老町",
+
+    type: "国立大学",
+
+    degree: "大学院",
+
+    qs: 118,
+    hensachi: null,
+
+    tuition: 535800,
+
+    eju: false,
+
+    rating: 4.7,
+
+    website: "https://www.nagoya-u.ac.jp/",
+
+    description:
+      "名古屋大学大学院拥有多个研究科，在工学、理学、信息学以及基础研究领域拥有较强实力。",
+
+    tags: [
+      "大学院",
+      "研究型",
+      "工学",
+      "奖学金",
+    ],
+  },
+
+  {
+    id: "kyushu",
+
+    name: "九州大学大学院",
+    englishName: "Kyushu University Graduate School",
+
+    image: "/images/university/university07.jpg",
+
+    location: "福冈 · 福冈市",
+    address: "福冈县福冈市西区元冈744",
+
+    type: "国立大学",
+
+    degree: "大学院",
+
+    qs: 167,
+    hensachi: null,
+
+    tuition: 535800,
+
+    eju: false,
+
+    rating: 4.6,
+
+    website: "https://www.kyushu-u.ac.jp/",
+
+    description:
+      "九州大学大学院拥有完善的研究教育体系，在工学、信息科学、理学以及国际研究项目方面具有优势。",
+
+    tags: [
+      "大学院",
+      "工学",
+      "国际项目",
+      "研究型",
+    ],
+  },
+];
+
+/* =========================================================
+   Page
+========================================================= */
+
+export default async function UniversityDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+
+  /* =======================================================
+     现在：Mock 数据
+
+     以后后台 API：
+
+     const university = await fetch(
+       `${process.env.API_URL}/universities/${id}`
+     ).then(res => res.json());
+
+  ======================================================= */
+
+  const university = universities.find(
+    (item) => item.id === id
+  );
+
+  /* =======================================================
+     找不到学校
+  ======================================================= */
+
+  if (!university) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <div className="text-7xl">
+            🎓
+          </div>
+
+          <h1 className="mt-6 text-3xl font-black text-slate-900">
+            没有找到这所学校
+          </h1>
+
+          <p className="mt-3 text-slate-500">
+            学校可能不存在，或者已经被删除。
+          </p>
+
+          <Link
+            href="/schools/university"
+            className="
+              mt-8
+              inline-flex
+              items-center
+              gap-2
+              rounded-xl
+              bg-blue-600
+              px-6
+              py-3
+              font-bold
+              text-white
+              transition
+              hover:bg-blue-700
+            "
+          >
+            <ArrowLeft size={18} />
+
+            返回大学列表
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
   return (
-    <main className="bg-slate-50 min-h-screen">
+    <main className="min-h-screen bg-slate-50">
 
-      {/* Hero */}
+      {/* ===================================================
+          HERO
+      =================================================== */}
 
       <section className="relative h-[460px] overflow-hidden">
 
         <Image
-          src="/images/university/university01.jpg"
-          alt="东京大学"
+          src={university.image}
+          alt={university.name}
           fill
           priority
+          sizes="100vw"
           className="object-cover"
         />
 
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/60 to-transparent" />
+        <div
+          className="
+            absolute
+            inset-0
+            bg-gradient-to-t
+            from-slate-950
+            via-slate-900/60
+            to-transparent
+          "
+        />
 
-        <div className="absolute left-0 right-0 bottom-0">
+        <div className="absolute bottom-0 left-0 right-0">
 
           <div className="mx-auto max-w-7xl px-6 pb-12">
 
             <Link
               href="/schools/university"
-              className="inline-flex items-center gap-2 text-white/80 hover:text-white mb-6"
+              className="
+                mb-6
+                inline-flex
+                items-center
+                gap-2
+                text-white/80
+                transition
+                hover:text-white
+              "
             >
               <ArrowLeft size={18} />
+
               返回大学列表
             </Link>
 
-            <div className="flex items-end justify-between">
+            <div
+              className="
+                flex
+                flex-col
+                gap-8
+                lg:flex-row
+                lg:items-end
+                lg:justify-between
+              "
+            >
+
+              {/* 左 */}
 
               <div>
 
-                <span className="rounded-full bg-blue-600 px-4 py-1 text-white text-sm">
-                  国立大学
-                </span>
+                <div className="flex flex-wrap gap-2">
 
-                <h1 className="mt-5 text-6xl font-black text-white">
-                  东京大学
+                  <span
+                    className="
+                      rounded-full
+                      bg-blue-600
+                      px-4
+                      py-1.5
+                      text-sm
+                      font-bold
+                      text-white
+                    "
+                  >
+                    {university.type}
+                  </span>
+
+                  <span
+                    className="
+                      rounded-full
+                      bg-white/15
+                      px-4
+                      py-1.5
+                      text-sm
+                      font-bold
+                      text-white
+                      backdrop-blur
+                    "
+                  >
+                    {university.degree}
+                  </span>
+
+                  {university.eju && (
+                    <span
+                      className="
+                        rounded-full
+                        bg-white/15
+                        px-4
+                        py-1.5
+                        text-sm
+                        font-bold
+                        text-white
+                        backdrop-blur
+                      "
+                    >
+                      EJU
+                    </span>
+                  )}
+
+                </div>
+
+                <h1
+                  className="
+                    mt-5
+                    text-4xl
+                    font-black
+                    text-white
+                    md:text-6xl
+                  "
+                >
+                  {university.name}
                 </h1>
 
-                <div className="mt-6 flex flex-wrap gap-6 text-white/90">
+                <p className="mt-3 text-lg text-white/70">
+                  {university.englishName}
+                </p>
+
+                <div
+                  className="
+                    mt-6
+                    flex
+                    flex-wrap
+                    gap-x-6
+                    gap-y-3
+                    text-white/90
+                  "
+                >
 
                   <div className="flex items-center gap-2">
                     <MapPin size={18} />
-                    东京 · 文京区
+
+                    {university.location}
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <Globe size={18} />
-                    QS 28
-                  </div>
+                  {university.qs !== null && (
+                    <div className="flex items-center gap-2">
+                      <Globe size={18} />
+
+                      QS {university.qs}
+                    </div>
+                  )}
+
+                  {university.hensachi !== null && (
+                    <div className="flex items-center gap-2">
+                      <Star size={18} />
+
+                      偏差值 {university.hensachi}
+                    </div>
+                  )}
 
                   <div className="flex items-center gap-2">
-                    <Star size={18} />
-                    偏差值 72
+                    <Star
+                      size={18}
+                      className="fill-current"
+                    />
+
+                    {university.rating}
                   </div>
 
                 </div>
 
               </div>
-
-              <button
-                className="
-                  rounded-2xl
-                  bg-blue-600
-                  px-8
-                  py-4
-                  text-lg
-                  font-bold
-                  text-white
-                  hover:bg-blue-700
-                "
-              >
-                收藏学校
-              </button>
 
             </div>
 
@@ -96,64 +573,27 @@ export default function UniversityDetailPage() {
 
       </section>
 
-      {/* 内容 */}
+      {/* ===================================================
+          内容
+      =================================================== */}
 
       <section className="mx-auto max-w-7xl px-6 py-10">
 
-        <div className="grid grid-cols-[1fr_360px] gap-8">
+        <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
 
           {/* 左侧 */}
 
           <div className="space-y-8">
 
-            <div className="rounded-3xl bg-white p-8 shadow-sm">
+            <UniversityInfo university={university} />
 
-              <h2 className="text-2xl font-bold">
-                学校介绍
-              </h2>
+            <UniversityCourse university={university} />
 
-              <p className="mt-6 leading-9 text-slate-600">
-                东京大学（The University of Tokyo）是日本最高学府，
-                创立于1877年，也是亚洲最具影响力的大学之一。
-                在科研、医学、工程、理学等领域拥有世界领先水平。
-              </p>
+            <UniversityTuition university={university} />
 
-            </div>
+            <UniversityGallery university={university} />
 
-            <div className="rounded-3xl bg-white p-8 shadow-sm">
-
-              <h2 className="text-2xl font-bold">
-                热门专业
-              </h2>
-
-              <div className="mt-6 flex flex-wrap gap-3">
-
-                {[
-                  "计算机",
-                  "人工智能",
-                  "经济学",
-                  "医学",
-                  "建筑",
-                  "法学",
-                  "机械工程",
-                ].map((item) => (
-                  <span
-                    key={item}
-                    className="
-                      rounded-full
-                      bg-blue-50
-                      px-4
-                      py-2
-                      text-blue-600
-                    "
-                  >
-                    {item}
-                  </span>
-                ))}
-
-              </div>
-
-            </div>
+            <UniversityReview university={university} />
 
           </div>
 
@@ -161,41 +601,7 @@ export default function UniversityDetailPage() {
 
           <div className="space-y-6">
 
-            <div className="rounded-3xl bg-white p-8 shadow-sm">
-
-              <h3 className="text-xl font-bold">
-                基本信息
-              </h3>
-
-              <div className="mt-6 space-y-5">
-
-                <Info
-                  icon={<GraduationCap size={18} />}
-                  title="学校性质"
-                  value="国立大学"
-                />
-
-                <Info
-                  icon={<Landmark size={18} />}
-                  title="大学院"
-                  value="支持"
-                />
-
-                <Info
-                  icon={<Coins size={18} />}
-                  title="学费"
-                  value="535,800円 / 年"
-                />
-
-                <Info
-                  icon={<Globe size={18} />}
-                  title="EJU"
-                  value="需要"
-                />
-
-              </div>
-
-            </div>
+            <UniversitySidebar university={university} />
 
           </div>
 
@@ -204,33 +610,5 @@ export default function UniversityDetailPage() {
       </section>
 
     </main>
-  );
-}
-
-function Info({
-  icon,
-  title,
-  value,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  value: string;
-}) {
-  return (
-    <div className="flex items-center justify-between">
-
-      <div className="flex items-center gap-3">
-
-        {icon}
-
-        <span>{title}</span>
-
-      </div>
-
-      <span className="font-semibold">
-        {value}
-      </span>
-
-    </div>
   );
 }
