@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -27,6 +27,9 @@ type Props = {
 
 const FAVORITE_KEY = "sakura-university-favorites";
 
+const FAVORITE_EVENT =
+  "sakura-university-favorite-change";
+
 export default function UniversityCard({
   id,
   name,
@@ -43,26 +46,81 @@ export default function UniversityCard({
   const [favorite, setFavorite] = useState(false);
 
   /* =========================================================
-     读取收藏状态
-     与 UniversitySidebar 使用同一个 localStorage Key
+     从 localStorage 读取当前收藏状态
   ========================================================= */
 
-  useEffect(() => {
+  const syncFavorite = useCallback(() => {
     try {
-      const saved = localStorage.getItem(FAVORITE_KEY);
+      const saved =
+        localStorage.getItem(FAVORITE_KEY);
 
       if (!saved) {
         setFavorite(false);
         return;
       }
 
-      const favorites: string[] = JSON.parse(saved);
+      const favorites: string[] =
+        JSON.parse(saved);
 
-      setFavorite(favorites.includes(id));
+      setFavorite(
+        favorites.includes(id)
+      );
     } catch {
       setFavorite(false);
     }
   }, [id]);
+
+  /* =========================================================
+     初始化 + 实时同步
+  ========================================================= */
+
+  useEffect(() => {
+    syncFavorite();
+
+    /*
+      同一个页面 / 同一个标签页中的组件同步
+    */
+
+    const handleFavoriteChange = () => {
+      syncFavorite();
+    };
+
+    /*
+      不同浏览器标签页之间同步
+    */
+
+    const handleStorage = (
+      event: StorageEvent
+    ) => {
+      if (
+        event.key === FAVORITE_KEY
+      ) {
+        syncFavorite();
+      }
+    };
+
+    window.addEventListener(
+      FAVORITE_EVENT,
+      handleFavoriteChange
+    );
+
+    window.addEventListener(
+      "storage",
+      handleStorage
+    );
+
+    return () => {
+      window.removeEventListener(
+        FAVORITE_EVENT,
+        handleFavoriteChange
+      );
+
+      window.removeEventListener(
+        "storage",
+        handleStorage
+      );
+    };
+  }, [syncFavorite]);
 
   /* =========================================================
      收藏 / 取消收藏
@@ -70,7 +128,8 @@ export default function UniversityCard({
 
   const handleFavorite = () => {
     try {
-      const saved = localStorage.getItem(FAVORITE_KEY);
+      const saved =
+        localStorage.getItem(FAVORITE_KEY);
 
       let favorites: string[] = saved
         ? JSON.parse(saved)
@@ -78,22 +137,42 @@ export default function UniversityCard({
 
       if (favorites.includes(id)) {
         favorites = favorites.filter(
-          (schoolId) => schoolId !== id
+          (schoolId) =>
+            schoolId !== id
         );
-
-        setFavorite(false);
       } else {
-        favorites.push(id);
-
-        setFavorite(true);
+        favorites = [
+          ...favorites,
+          id,
+        ];
       }
 
       localStorage.setItem(
         FAVORITE_KEY,
         JSON.stringify(favorites)
       );
+
+      /*
+        localStorage 在当前标签页不会触发 storage，
+        所以主动发送自定义事件。
+      */
+
+      window.dispatchEvent(
+        new CustomEvent(
+          FAVORITE_EVENT,
+          {
+            detail: {
+              id,
+              favorite:
+                favorites.includes(id),
+            },
+          }
+        )
+      );
     } catch {
-      setFavorite((current) => !current);
+      setFavorite(
+        (current) => !current
+      );
     }
   };
 
@@ -118,9 +197,7 @@ export default function UniversityCard({
     >
       <div className="grid md:grid-cols-[300px_1fr]">
 
-        {/* =====================================================
-            图片
-        ===================================================== */}
+        {/* 图片 */}
 
         <Link
           href={`/schools/university/${id}`}
@@ -156,8 +233,6 @@ export default function UniversityCard({
             "
           />
 
-          {/* 学校类型 */}
-
           <div className="absolute left-5 top-5">
             <span
               className="
@@ -178,9 +253,7 @@ export default function UniversityCard({
           </div>
         </Link>
 
-        {/* =====================================================
-            内容
-        ===================================================== */}
+        {/* 内容 */}
 
         <div className="relative flex min-w-0 flex-col p-7">
 
@@ -194,7 +267,11 @@ export default function UniversityCard({
                 ? `取消收藏 ${name}`
                 : `收藏 ${name}`
             }
-            title={favorite ? "取消收藏" : "收藏学校"}
+            title={
+              favorite
+                ? "取消收藏"
+                : "收藏学校"
+            }
             className={`
               absolute
               right-6
@@ -257,7 +334,6 @@ export default function UniversityCard({
             >
               <span className="flex items-center gap-1.5">
                 <MapPin size={16} />
-
                 {location}
               </span>
 
@@ -266,15 +342,12 @@ export default function UniversityCard({
                   size={16}
                   className="fill-amber-400 text-amber-400"
                 />
-
                 {rating}
               </span>
             </div>
           </div>
 
-          {/* =====================================================
-              数据
-          ===================================================== */}
+          {/* 数据 */}
 
           <div
             className="
@@ -286,20 +359,30 @@ export default function UniversityCard({
             "
           >
             <InfoBox
-              icon={<Globe2 size={16} />}
+              icon={
+                <Globe2 size={16} />
+              }
               label="QS"
               value={`#${qs}`}
             />
 
             <InfoBox
-              icon={<GraduationCap size={16} />}
+              icon={
+                <GraduationCap
+                  size={16}
+                />
+              }
               label="偏差值"
               value={String(hensachi)}
             />
 
             <InfoBox
               label="EJU"
-              value={eju ? "需要" : "无需"}
+              value={
+                eju
+                  ? "需要"
+                  : "无需"
+              }
             />
 
             <InfoBox
@@ -309,27 +392,27 @@ export default function UniversityCard({
             />
           </div>
 
-          {/* =====================================================
-              Tags
-          ===================================================== */}
+          {/* 标签 */}
 
           <div className="mt-6 flex flex-wrap gap-2">
-            {tags.slice(0, 5).map((tag) => (
-              <span
-                key={tag}
-                className="
-                  rounded-lg
-                  bg-slate-100
-                  px-3
-                  py-1.5
-                  text-xs
-                  font-medium
-                  text-slate-600
-                "
-              >
-                {tag}
-              </span>
-            ))}
+            {tags
+              .slice(0, 5)
+              .map((tag) => (
+                <span
+                  key={tag}
+                  className="
+                    rounded-lg
+                    bg-slate-100
+                    px-3
+                    py-1.5
+                    text-xs
+                    font-medium
+                    text-slate-600
+                  "
+                >
+                  {tag}
+                </span>
+              ))}
 
             {tags.length > 5 && (
               <span
@@ -348,9 +431,7 @@ export default function UniversityCard({
             )}
           </div>
 
-          {/* =====================================================
-              底部
-          ===================================================== */}
+          {/* 底部 */}
 
           <div
             className="
@@ -387,7 +468,6 @@ export default function UniversityCard({
               "
             >
               查看详情
-
               <span>→</span>
             </Link>
           </div>
@@ -430,7 +510,6 @@ function InfoBox({
         "
       >
         {icon}
-
         {label}
       </div>
 

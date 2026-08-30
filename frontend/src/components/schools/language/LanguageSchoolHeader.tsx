@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -10,25 +11,241 @@ import {
   Heart,
   Share2,
   BadgeCheck,
+  Check,
 } from "lucide-react";
 
 import Container from "@/components/layout/Container";
 import Button from "@/components/ui/Button";
 
-interface Props {
+export type LanguageSchoolHeaderData = {
   id: string;
+  name: string;
+  englishName: string;
+  location: string;
+  type: "升学型" | "综合型" | "就业型";
+  rating: number;
+  foreignerRating: number;
+  risk: "低风险" | "需要注意";
+  chineseSupport: boolean;
+  universitySupport: boolean;
+  graduateSupport: boolean;
+  visaSupport: boolean;
+  website: string;
+  tags: string[];
+};
+
+interface Props {
+  school: LanguageSchoolHeaderData;
 }
 
+const FAVORITE_KEY = "sakura-language-school-favorites";
+const FAVORITE_EVENT = "sakura-language-school-favorite-change";
+
 export default function LanguageSchoolHeader({
-  id,
+  school,
 }: Props) {
+  const [favorite, setFavorite] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  /*
+  |--------------------------------------------------------------------------
+  | TODO [API - GET]
+  |--------------------------------------------------------------------------
+  |
+  | 登录系统完成后：
+  |
+  | GET /api/users/me/favorites/language-schools
+  |
+  | 用于取得当前用户收藏的语言学校。
+  |
+  | 现在暂时使用 localStorage。
+  |
+  |--------------------------------------------------------------------------
+  */
+
+  const syncFavorite = useCallback(() => {
+    try {
+      const saved = localStorage.getItem(FAVORITE_KEY);
+
+      if (!saved) {
+        setFavorite(false);
+        return;
+      }
+
+      const favorites: string[] = JSON.parse(saved);
+
+      setFavorite(favorites.includes(school.id));
+    } catch {
+      setFavorite(false);
+    }
+  }, [school.id]);
+
+  useEffect(() => {
+    syncFavorite();
+
+    const handleFavoriteChange = () => {
+      syncFavorite();
+    };
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === FAVORITE_KEY) {
+        syncFavorite();
+      }
+    };
+
+    window.addEventListener(
+      FAVORITE_EVENT,
+      handleFavoriteChange
+    );
+
+    window.addEventListener(
+      "storage",
+      handleStorage
+    );
+
+    return () => {
+      window.removeEventListener(
+        FAVORITE_EVENT,
+        handleFavoriteChange
+      );
+
+      window.removeEventListener(
+        "storage",
+        handleStorage
+      );
+    };
+  }, [syncFavorite]);
+
+  const handleFavorite = () => {
+    /*
+    |--------------------------------------------------------------------------
+    | TODO [API - POST / DELETE]
+    |--------------------------------------------------------------------------
+    |
+    | 收藏：
+    |
+    | POST /api/language-schools/:id/favorite
+    |
+    | 取消收藏：
+    |
+    | DELETE /api/language-schools/:id/favorite
+    |
+    | 现在暂时使用 localStorage。
+    |
+    |--------------------------------------------------------------------------
+    */
+
+    try {
+      const saved = localStorage.getItem(FAVORITE_KEY);
+
+      let favorites: string[] = saved
+        ? JSON.parse(saved)
+        : [];
+
+      if (favorites.includes(school.id)) {
+        favorites = favorites.filter(
+          (id) => id !== school.id
+        );
+      } else {
+        favorites.push(school.id);
+      }
+
+      localStorage.setItem(
+        FAVORITE_KEY,
+        JSON.stringify(favorites)
+      );
+
+      const nextFavorite = favorites.includes(
+        school.id
+      );
+
+      setFavorite(nextFavorite);
+
+      window.dispatchEvent(
+        new CustomEvent(FAVORITE_EVENT, {
+          detail: {
+            id: school.id,
+            favorite: nextFavorite,
+          },
+        })
+      );
+    } catch {
+      setFavorite((value) => !value);
+    }
+  };
+
+  const handleShare = async () => {
+    const url = window.location.href;
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: school.name,
+          text: `查看 ${school.name} 的学校信息`,
+          url,
+        });
+
+        return;
+      }
+
+      await navigator.clipboard.writeText(url);
+
+      setCopied(true);
+
+      window.setTimeout(() => {
+        setCopied(false);
+      }, 2000);
+    } catch {
+      // 用户主动取消分享时不需要处理
+    }
+  };
+
+  const handleWebsite = () => {
+    if (!school.website) {
+      return;
+    }
+
+    window.open(
+      school.website,
+      "_blank",
+      "noopener,noreferrer"
+    );
+  };
+
+  const aiRecommendation = (() => {
+    if (school.type === "就业型") {
+      return "适合希望提升日语能力并以在日本就业为主要目标的学生。可以重点确认就业指导、企业介绍、签证支持以及毕业后的就业实绩。";
+    }
+
+    if (school.graduateSupport) {
+      return "适合计划进入日本大学或大学院继续升学的留学生。可以重点关注升学指导、EJU、JLPT、研究计划书以及面试辅导。";
+    }
+
+    if (school.universitySupport) {
+      return "适合以日本大学或专门学校升学为主要目标的留学生。建议结合学费、地区、升学指导和留学生支持进行比较。";
+    }
+
+    return "适合希望系统学习日语并体验日本生活的学生。建议结合课程方向、学费、地区和留学生支持综合判断。";
+  })();
+
+  const displayTags = Array.from(
+    new Set([
+      school.type,
+      ...school.tags,
+      ...(school.chineseSupport
+        ? ["中文支持"]
+        : []),
+      ...(school.visaSupport
+        ? ["签证支持"]
+        : []),
+    ])
+  ).slice(0, 6);
+
   return (
     <section className="relative overflow-hidden bg-slate-950">
-
       {/* Background */}
 
       <div className="absolute inset-0">
-
         <div
           className="
             absolute
@@ -37,7 +254,7 @@ export default function LanguageSchoolHeader({
             h-96
             w-96
             rounded-full
-            bg-blue-600/20
+            bg-emerald-600/20
             blur-3xl
           "
         />
@@ -54,13 +271,10 @@ export default function LanguageSchoolHeader({
             blur-3xl
           "
         />
-
       </div>
 
       <Container>
-
         <div className="relative py-14">
-
           {/* 返回 */}
 
           <Link
@@ -78,7 +292,7 @@ export default function LanguageSchoolHeader({
               text-sm
               text-slate-300
               transition
-              hover:border-blue-400
+              hover:border-emerald-400
               hover:text-white
             "
           >
@@ -90,11 +304,9 @@ export default function LanguageSchoolHeader({
           {/* 主体 */}
 
           <div className="mt-10 flex flex-col gap-10 lg:flex-row lg:justify-between">
-
             {/* 左 */}
 
-            <div className="flex flex-1 gap-6">
-
+            <div className="flex flex-1 flex-col gap-6 sm:flex-row">
               {/* Logo */}
 
               <div
@@ -107,37 +319,19 @@ export default function LanguageSchoolHeader({
                   justify-center
                   rounded-3xl
                   bg-gradient-to-br
-                  from-blue-500
+                  from-emerald-500
                   to-cyan-500
                   text-white
                   shadow-2xl
                 "
               >
-
                 <GraduationCap size={48} />
-
               </div>
 
               {/* 信息 */}
 
-              <div className="flex-1">
-
+              <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-3">
-
-                  <span
-                    className="
-                      rounded-full
-                      bg-blue-500/20
-                      px-3
-                      py-1
-                      text-xs
-                      font-semibold
-                      text-blue-300
-                    "
-                  >
-                    语言学校
-                  </span>
-
                   <span
                     className="
                       rounded-full
@@ -149,55 +343,70 @@ export default function LanguageSchoolHeader({
                       text-emerald-300
                     "
                   >
-                    官方认证
+                    {school.type}
                   </span>
 
+                  <span
+                    className={`
+                      rounded-full
+                      px-3
+                      py-1
+                      text-xs
+                      font-semibold
+                      ${
+                        school.risk === "低风险"
+                          ? "bg-emerald-500/20 text-emerald-300"
+                          : "bg-orange-500/20 text-orange-300"
+                      }
+                    `}
+                  >
+                    {school.risk === "低风险"
+                      ? "🟢 低风险"
+                      : "🟡 需要注意"}
+                  </span>
                 </div>
 
                 <h1
                   className="
                     mt-5
-                    text-5xl
+                    text-4xl
                     font-black
                     tracking-tight
                     text-white
+                    sm:text-5xl
                   "
                 >
-                  东京国际文化学院
+                  {school.name}
                 </h1>
 
                 <p className="mt-3 text-lg text-slate-300">
-                  Tokyo International Language School
+                  {school.englishName}
                 </p>
 
                 {/* 信息 */}
 
-                <div className="mt-7 flex flex-wrap gap-6 text-sm">
-
+                <div className="mt-7 flex flex-wrap gap-x-6 gap-y-4 text-sm">
                   <div className="flex items-center gap-2 text-slate-300">
-
                     <MapPin
                       size={18}
-                      className="text-blue-400"
+                      className="text-emerald-400"
                     />
 
-                    东京 · 新宿区
-
+                    {school.location}
                   </div>
 
                   <div className="flex items-center gap-2 text-slate-300">
-
                     <Globe
                       size={18}
                       className="text-cyan-400"
                     />
 
-                    支持留学生
-
+                    {school.visaSupport
+                      ? "支持留学生 · 签证支持"
+                      : "支持留学生"}
                   </div>
 
                   <div className="flex items-center gap-2">
-
                     <Star
                       size={18}
                       className="
@@ -207,30 +416,29 @@ export default function LanguageSchoolHeader({
                     />
 
                     <span className="font-semibold text-white">
-                      4.8
+                      {school.rating.toFixed(1)}
                     </span>
 
                     <span className="text-slate-400">
-                      (326条评价)
+                      综合评分
                     </span>
-
                   </div>
 
+                  <div className="flex items-center gap-2 text-slate-300">
+                    <span className="text-slate-400">
+                      外国人友好度
+                    </span>
+
+                    <span className="font-semibold text-white">
+                      {school.foreignerRating.toFixed(1)}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Tags */}
 
                 <div className="mt-8 flex flex-wrap gap-3">
-
-                  {[
-                    "N2升学",
-                    "签证率高",
-                    "宿舍",
-                    "中国人友好",
-                    "EJU",
-                    "JLPT",
-                  ].map((item) => (
-
+                  {displayTags.map((item) => (
                     <span
                       key={item}
                       className="
@@ -246,13 +454,9 @@ export default function LanguageSchoolHeader({
                     >
                       {item}
                     </span>
-
                   ))}
-
                 </div>
-
               </div>
-
             </div>
 
             {/* 右 */}
@@ -269,25 +473,77 @@ export default function LanguageSchoolHeader({
                 lg:w-80
               "
             >
-
               <div className="space-y-4">
+                {/*
+                  TODO [API - POST]
 
-                <Button className="w-full h-12 text-base">
-                  我要报名
-                </Button>
+                  正式报名功能：
+
+                  POST /api/language-schools/:id/applications
+
+                  目前先进入 Sakura 报名页面。
+                */}
+
+                <Link
+                  href={`/schools/apply?schoolId=${encodeURIComponent(
+                    school.id
+                  )}&schoolName=${encodeURIComponent(
+                    school.name
+                  )}&type=language`}
+                  className="block"
+                >
+                  <Button className="h-12 w-full text-base">
+                    我要报名
+                  </Button>
+                </Link>
 
                 <Button
                   variant="outline"
-                  className="w-full h-12"
+                  className="h-12 w-full"
+                  onClick={handleWebsite}
                 >
                   官网链接
                 </Button>
-
               </div>
 
               <div className="mt-8 space-y-4">
+                <button
+                  type="button"
+                  onClick={handleFavorite}
+                  className={`
+                    flex
+                    w-full
+                    items-center
+                    gap-3
+                    rounded-xl
+                    border
+                    px-4
+                    py-3
+                    transition
+                    ${
+                      favorite
+                        ? "border-rose-400/40 bg-rose-500/10 text-rose-300"
+                        : "border-white/10 text-slate-300 hover:border-emerald-400"
+                    }
+                  `}
+                >
+                  <Heart
+                    size={18}
+                    className={
+                      favorite
+                        ? "fill-current"
+                        : ""
+                    }
+                  />
+
+                  {favorite
+                    ? "已收藏"
+                    : "收藏学校"}
+                </button>
 
                 <button
+                  type="button"
+                  onClick={handleShare}
                   className="
                     flex
                     w-full
@@ -300,75 +556,51 @@ export default function LanguageSchoolHeader({
                     py-3
                     text-slate-300
                     transition
-                    hover:border-blue-400
+                    hover:border-emerald-400
                   "
                 >
-                  <Heart size={18} />
-                  收藏学校
-                </button>
+                  {copied ? (
+                    <Check
+                      size={18}
+                      className="text-emerald-400"
+                    />
+                  ) : (
+                    <Share2 size={18} />
+                  )}
 
-                <button
-                  className="
-                    flex
-                    w-full
-                    items-center
-                    gap-3
-                    rounded-xl
-                    border
-                    border-white/10
-                    px-4
-                    py-3
-                    text-slate-300
-                    transition
-                    hover:border-blue-400
-                  "
-                >
-                  <Share2 size={18} />
-                  分享学校
+                  {copied
+                    ? "链接已复制"
+                    : "分享学校"}
                 </button>
-
               </div>
 
               <div
                 className="
                   mt-8
                   rounded-2xl
-                  bg-blue-500/10
+                  bg-emerald-500/10
                   p-4
                 "
               >
-
                 <div className="flex items-center gap-2">
-
                   <BadgeCheck
                     size={18}
-                    className="text-blue-400"
+                    className="text-emerald-400"
                   />
 
-                  <span className="font-semibold text-blue-300">
+                  <span className="font-semibold text-emerald-300">
                     AI 推荐
                   </span>
-
                 </div>
 
                 <p className="mt-3 text-sm leading-7 text-slate-300">
-                  非常适合希望进入日本大学、
-                  大学院或专门学校的留学生，
-                  学校管理规范，
-                  中国学生比例适中，
-                  升学率较高。
+                  {aiRecommendation}
                 </p>
-
               </div>
-
             </div>
-
           </div>
-
         </div>
-
       </Container>
-
     </section>
   );
 }

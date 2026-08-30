@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, Globe, MapPin, Star } from "lucide-react";
+import { notFound } from "next/navigation";
 
 import UniversityInfo from "@/components/schools/university/UniversityInfo";
 import UniversityCourse from "@/components/schools/university/UniversityCourse";
@@ -347,45 +348,7 @@ export default async function UniversityDetailPage({
   ======================================================= */
 
   if (!university) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-50">
-        <div className="text-center">
-          <div className="text-7xl">
-            🎓
-          </div>
-
-          <h1 className="mt-6 text-3xl font-black text-slate-900">
-            没有找到这所学校
-          </h1>
-
-          <p className="mt-3 text-slate-500">
-            学校可能不存在，或者已经被删除。
-          </p>
-
-          <Link
-            href="/schools/university"
-            className="
-              mt-8
-              inline-flex
-              items-center
-              gap-2
-              rounded-xl
-              bg-blue-600
-              px-6
-              py-3
-              font-bold
-              text-white
-              transition
-              hover:bg-blue-700
-            "
-          >
-            <ArrowLeft size={18} />
-
-            返回大学列表
-          </Link>
-        </div>
-      </main>
-    );
+    notFound();
   }
 
   return (

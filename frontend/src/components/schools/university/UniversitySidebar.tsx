@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import {
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
+import {
+  Bookmark,
   Check,
   ExternalLink,
-  Heart,
-  Send,
   Share2,
 } from "lucide-react";
 
@@ -20,157 +23,330 @@ type Props = {
   university: UniversitySidebarData;
 };
 
-const menus = [
-  { id: "info", title: "学校介绍" },
-  { id: "course", title: "专业设置" },
-  { id: "tuition", title: "学费参考" },
-  { id: "gallery", title: "校园环境" },
-  { id: "review", title: "学生评价" },
-];
+const FAVORITE_KEY =
+  "sakura-university-favorites";
 
-const FAVORITE_KEY = "sakura-university-favorites";
+const FAVORITE_EVENT =
+  "sakura-university-favorite-change";
+
+const menus = [
+  {
+    id: "info",
+    title: "学校介绍",
+  },
+  {
+    id: "course",
+    title: "专业设置",
+  },
+  {
+    id: "tuition",
+    title: "学费参考",
+  },
+  {
+    id: "gallery",
+    title: "校园环境",
+  },
+  {
+    id: "review",
+    title: "学生评价",
+  },
+];
 
 export default function UniversitySidebar({
   university,
 }: Props) {
-  const [favorite, setFavorite] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [favorite, setFavorite] =
+    useState(false);
+
   const [activeSection, setActiveSection] =
     useState("info");
 
+  const [copied, setCopied] =
+    useState(false);
+
   /* =========================================================
-     初始化收藏状态
+     从 localStorage 读取收藏状态
   ========================================================= */
 
-  useEffect(() => {
+  const syncFavorite = useCallback(() => {
     try {
-      const saved = localStorage.getItem(FAVORITE_KEY);
+      const saved =
+        localStorage.getItem(
+          FAVORITE_KEY
+        );
 
-      if (!saved) return;
+      if (!saved) {
+        setFavorite(false);
+        return;
+      }
 
-      const favorites: string[] = JSON.parse(saved);
+      const favorites: string[] =
+        JSON.parse(saved);
 
-      setFavorite(favorites.includes(university.id));
+      setFavorite(
+        favorites.includes(
+          university.id
+        )
+      );
     } catch {
       setFavorite(false);
     }
   }, [university.id]);
 
   /* =========================================================
-     页面滚动时自动更新导航高亮
+     初始化收藏 + 实时同步
+  ========================================================= */
+
+  useEffect(() => {
+    syncFavorite();
+
+    /*
+      当前标签页组件之间同步
+    */
+
+    const handleFavoriteChange =
+      () => {
+        syncFavorite();
+      };
+
+    /*
+      不同浏览器标签页同步
+    */
+
+    const handleStorage = (
+      event: StorageEvent
+    ) => {
+      if (
+        event.key === FAVORITE_KEY
+      ) {
+        syncFavorite();
+      }
+    };
+
+    window.addEventListener(
+      FAVORITE_EVENT,
+      handleFavoriteChange
+    );
+
+    window.addEventListener(
+      "storage",
+      handleStorage
+    );
+
+    return () => {
+      window.removeEventListener(
+        FAVORITE_EVENT,
+        handleFavoriteChange
+      );
+
+      window.removeEventListener(
+        "storage",
+        handleStorage
+      );
+    };
+  }, [syncFavorite]);
+
+  /* =========================================================
+     页面滚动监听
   ========================================================= */
 
   useEffect(() => {
     const sections = menus
       .map((menu) =>
-        document.getElementById(menu.id)
+        document.getElementById(
+          menu.id
+        )
       )
-      .filter(Boolean) as HTMLElement[];
+      .filter(
+        (
+          section
+        ): section is HTMLElement =>
+          section !== null
+      );
 
-    if (!sections.length) return;
+    if (sections.length === 0) {
+      return;
+    }
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort(
-            (a, b) =>
-              b.intersectionRatio -
-              a.intersectionRatio
-          );
+    const observer =
+      new IntersectionObserver(
+        (entries) => {
+          const visibleEntries =
+            entries
+              .filter(
+                (entry) =>
+                  entry.isIntersecting
+              )
+              .sort(
+                (a, b) =>
+                  b.intersectionRatio -
+                  a.intersectionRatio
+              );
 
-        if (visible.length > 0) {
-          setActiveSection(visible[0].target.id);
+          if (
+            visibleEntries.length >
+            0
+          ) {
+            setActiveSection(
+              visibleEntries[0]
+                .target.id
+            );
+          }
+        },
+        {
+          rootMargin:
+            "-20% 0px -65% 0px",
+          threshold: [
+            0,
+            0.1,
+            0.25,
+            0.5,
+          ],
         }
-      },
-      {
-        rootMargin: "-120px 0px -55% 0px",
-        threshold: [0.1, 0.25, 0.5],
-      }
+      );
+
+    sections.forEach(
+      (section) =>
+        observer.observe(section)
     );
 
-    sections.forEach((section) =>
-      observer.observe(section)
-    );
-
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+    };
   }, []);
 
   /* =========================================================
-     收藏
+     收藏 / 取消收藏
   ========================================================= */
 
   const handleFavorite = () => {
     try {
       const saved =
-        localStorage.getItem(FAVORITE_KEY);
-
-      let favorites: string[] = saved
-        ? JSON.parse(saved)
-        : [];
-
-      if (favorites.includes(university.id)) {
-        favorites = favorites.filter(
-          (id) => id !== university.id
+        localStorage.getItem(
+          FAVORITE_KEY
         );
 
-        setFavorite(false);
-      } else {
-        favorites.push(university.id);
+      let favorites: string[] =
+        saved
+          ? JSON.parse(saved)
+          : [];
 
-        setFavorite(true);
+      if (
+        favorites.includes(
+          university.id
+        )
+      ) {
+        favorites =
+          favorites.filter(
+            (id) =>
+              id !==
+              university.id
+          );
+      } else {
+        favorites = [
+          ...favorites,
+          university.id,
+        ];
       }
 
       localStorage.setItem(
         FAVORITE_KEY,
         JSON.stringify(favorites)
       );
+
+      /*
+        通知当前页面其他组件
+      */
+
+      window.dispatchEvent(
+        new CustomEvent(
+          FAVORITE_EVENT,
+          {
+            detail: {
+              id: university.id,
+              favorite:
+                favorites.includes(
+                  university.id
+                ),
+            },
+          }
+        )
+      );
     } catch {
-      setFavorite((current) => !current);
+      setFavorite(
+        (current) => !current
+      );
     }
+  };
+
+  /* =========================================================
+     页面导航
+  ========================================================= */
+
+  const handleScroll = (
+    id: string
+  ) => {
+    const element =
+      document.getElementById(id);
+
+    if (!element) {
+      return;
+    }
+
+    setActiveSection(id);
+
+    element.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
   };
 
   /* =========================================================
      分享
   ========================================================= */
 
-  const handleShare = async () => {
-    const url = window.location.href;
+  const handleShare =
+    async () => {
+      const url =
+        window.location.href;
 
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title: university.name,
-          text: `查看 ${university.name} 的学校信息`,
-          url,
-        });
+      try {
+        if (navigator.share) {
+          await navigator.share({
+            title:
+              university.name,
+            text: `查看 ${university.name} 的学校信息`,
+            url,
+          });
 
-        return;
+          return;
+        }
+
+        await navigator.clipboard.writeText(
+          url
+        );
+
+        setCopied(true);
+
+        window.setTimeout(() => {
+          setCopied(false);
+        }, 1800);
+      } catch {
+        /*
+          用户主动取消系统分享时，
+          不需要显示错误。
+        */
       }
-
-      await navigator.clipboard.writeText(url);
-
-      setCopied(true);
-
-      window.setTimeout(() => {
-        setCopied(false);
-      }, 2000);
-    } catch (error) {
-      /*
-        用户主动取消系统分享窗口时，
-        浏览器也可能进入 catch。
-        不需要报错。
-      */
-      console.log("Share cancelled", error);
-    }
-  };
+    };
 
   /* =========================================================
      官网
   ========================================================= */
 
   const handleWebsite = () => {
-    if (!university.website) return;
+    if (!university.website) {
+      return;
+    }
 
     window.open(
       university.website,
@@ -181,113 +357,124 @@ export default function UniversitySidebar({
 
   /* =========================================================
      申请
-
-     现在先跳转 Sakura 申请页面。
-     后面申请系统做好以后直接接 API / Form。
   ========================================================= */
 
   const handleApply = () => {
-    const params = new URLSearchParams({
-      schoolId: university.id,
-      schoolName: university.name,
-      type: university.degree,
-    });
+    const params =
+      new URLSearchParams({
+        schoolId:
+          university.id,
+        schoolName:
+          university.name,
+        type:
+          university.degree,
+      });
 
-    window.location.href = `/schools/apply?${params.toString()}`;
+    window.location.href =
+      `/schools/apply?${params.toString()}`;
   };
 
   return (
-    <aside className="sticky top-24 space-y-6">
-
-      {/* =====================================================
+    <aside
+      className="
+        sticky
+        top-24
+        space-y-5
+      "
+    >
+      {/* ===============================================
           页面导航
-      ===================================================== */}
+      =============================================== */}
 
       <div
         className="
-          rounded-[28px]
+          overflow-hidden
+          rounded-2xl
           border
           border-slate-200
           bg-white
-          p-7
           shadow-sm
         "
       >
-        <h3 className="text-xl font-black text-slate-900">
-          页面导航
-        </h3>
+        <div className="border-b border-slate-100 px-5 py-4">
+          <p className="text-sm font-bold text-slate-900">
+            学校信息
+          </p>
+        </div>
 
-        <div className="mt-6 space-y-2">
-          {menus.map((item) => {
+        <nav className="p-2">
+          {menus.map((menu) => {
             const active =
-              activeSection === item.id;
+              activeSection ===
+              menu.id;
 
             return (
-              <a
-                key={item.id}
-                href={`#${item.id}`}
+              <button
+                key={menu.id}
+                type="button"
                 onClick={() =>
-                  setActiveSection(item.id)
+                  handleScroll(
+                    menu.id
+                  )
                 }
                 className={`
                   flex
+                  w-full
                   items-center
                   justify-between
                   rounded-xl
                   px-4
                   py-3
+                  text-left
                   text-sm
                   font-medium
                   transition
                   ${
                     active
-                      ? "bg-blue-50 font-bold text-blue-600"
-                      : "text-slate-600 hover:bg-slate-50 hover:text-blue-600"
+                      ? "bg-blue-50 text-blue-700"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                   }
                 `}
               >
-                {item.title}
+                {menu.title}
 
-                <span
-                  className={
-                    active
-                      ? "text-blue-600"
-                      : "text-slate-300"
-                  }
-                >
-                  →
-                </span>
-              </a>
+                {active && (
+                  <span
+                    className="
+                      h-1.5
+                      w-1.5
+                      rounded-full
+                      bg-blue-600
+                    "
+                  />
+                )}
+              </button>
             );
           })}
-        </div>
+        </nav>
       </div>
 
-      {/* =====================================================
+      {/* ===============================================
           操作区域
-      ===================================================== */}
+      =============================================== */}
 
       <div
         className="
-          rounded-[28px]
+          rounded-2xl
           border
           border-slate-200
           bg-white
-          p-7
+          p-5
           shadow-sm
         "
       >
-        <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
-            {university.degree === "大学院"
-              ? "Graduate School"
-              : "University"}
-          </p>
+        <p className="text-sm font-bold text-slate-900">
+          对这所学校感兴趣？
+        </p>
 
-          <h3 className="mt-2 text-lg font-black text-slate-900">
-            {university.name}
-          </h3>
-        </div>
+        <p className="mt-2 text-xs leading-5 text-slate-500">
+          收藏学校、查看官网或进一步了解申请信息。
+        </p>
 
         {/* 申请 */}
 
@@ -295,15 +482,13 @@ export default function UniversitySidebar({
           type="button"
           onClick={handleApply}
           className="
-            mt-6
-            flex
+            mt-5
             w-full
-            items-center
-            justify-center
-            gap-2
             rounded-xl
             bg-blue-600
-            py-4
+            px-4
+            py-3
+            text-sm
             font-bold
             text-white
             transition
@@ -311,20 +496,18 @@ export default function UniversitySidebar({
             active:scale-[0.98]
           "
         >
-          <Send size={18} />
-
-          {university.degree === "大学院"
-            ? "咨询大学院申请"
-            : "立即申请"}
+          查看申请信息
         </button>
 
         {/* 收藏 */}
 
         <button
           type="button"
-          onClick={handleFavorite}
+          onClick={
+            handleFavorite
+          }
           className={`
-            mt-4
+            mt-3
             flex
             w-full
             items-center
@@ -332,19 +515,21 @@ export default function UniversitySidebar({
             gap-2
             rounded-xl
             border
-            py-4
-            font-medium
+            px-4
+            py-3
+            text-sm
+            font-semibold
             transition
             active:scale-[0.98]
             ${
               favorite
-                ? "border-red-200 bg-red-50 text-red-500"
-                : "border-slate-200 text-slate-700 hover:bg-slate-50"
+                ? "border-blue-200 bg-blue-50 text-blue-700"
+                : "border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
             }
           `}
         >
-          <Heart
-            size={18}
+          <Bookmark
+            size={17}
             className={
               favorite
                 ? "fill-current"
@@ -362,44 +547,8 @@ export default function UniversitySidebar({
         <button
           type="button"
           onClick={handleShare}
-          className={`
-            mt-4
-            flex
-            w-full
-            items-center
-            justify-center
-            gap-2
-            rounded-xl
-            border
-            py-4
-            font-medium
-            transition
-            active:scale-[0.98]
-            ${
-              copied
-                ? "border-green-200 bg-green-50 text-green-600"
-                : "border-slate-200 text-slate-700 hover:bg-slate-50"
-            }
-          `}
-        >
-          {copied ? (
-            <Check size={18} />
-          ) : (
-            <Share2 size={18} />
-          )}
-
-          {copied
-            ? "链接已复制"
-            : "分享学校"}
-        </button>
-
-        {/* 官网 */}
-
-        <button
-          type="button"
-          onClick={handleWebsite}
           className="
-            mt-4
+            mt-3
             flex
             w-full
             items-center
@@ -408,40 +557,73 @@ export default function UniversitySidebar({
             rounded-xl
             border
             border-slate-200
-            py-4
-            font-medium
-            text-slate-700
+            bg-white
+            px-4
+            py-3
+            text-sm
+            font-semibold
+            text-slate-600
             transition
             hover:border-blue-200
             hover:bg-blue-50
-            hover:text-blue-600
+            hover:text-blue-700
             active:scale-[0.98]
           "
         >
-          <ExternalLink size={18} />
-
-          官方网站
+          {copied ? (
+            <>
+              <Check
+                size={17}
+              />
+              链接已复制
+            </>
+          ) : (
+            <>
+              <Share2
+                size={17}
+              />
+              分享学校
+            </>
+          )}
         </button>
-      </div>
 
-      {/* =====================================================
-          提示
-      ===================================================== */}
+        {/* 官网 */}
 
-      <div
-        className="
-          rounded-2xl
-          border
-          border-blue-100
-          bg-blue-50/60
-          px-5
-          py-4
-        "
-      >
-        <p className="text-xs leading-6 text-blue-700">
-          学校募集时间、出愿条件及考试要求每年可能发生变化，
-          申请前请确认最新募集要项。
-        </p>
+        {university.website && (
+          <button
+            type="button"
+            onClick={
+              handleWebsite
+            }
+            className="
+              mt-3
+              flex
+              w-full
+              items-center
+              justify-center
+              gap-2
+              rounded-xl
+              border
+              border-slate-200
+              bg-white
+              px-4
+              py-3
+              text-sm
+              font-semibold
+              text-slate-600
+              transition
+              hover:border-blue-200
+              hover:bg-blue-50
+              hover:text-blue-700
+              active:scale-[0.98]
+            "
+          >
+            <ExternalLink
+              size={17}
+            />
+            学校官网
+          </button>
+        )}
       </div>
     </aside>
   );
