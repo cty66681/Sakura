@@ -1,10 +1,3 @@
-export interface HouseContact {
-  name: string;
-  company: string;
-  phone: string;
-  email: string;
-}
-
 export interface House {
   id: number;
   title: string;
@@ -29,20 +22,14 @@ export interface House {
   views: number;
 
   images: string[];
-
   tags: string[];
 
   description: string;
-
-  latitude: number;
-  longitude: number;
 
   contactName: string;
   company: string;
   phone: string;
   email: string;
-
-  contact: HouseContact;
 }
 
 export const houses: House[] = [
@@ -51,7 +38,7 @@ export const houses: House[] = [
 
     title: "池袋 1LDK",
 
-    rent: "¥89,000 / 月",
+    rent: "¥89,000",
     managementFee: "¥5,000",
 
     deposit: "1个月",
@@ -83,20 +70,10 @@ export const houses: House[] = [
     description:
       "池袋站步行8分钟。周边超市、便利店、药妆店齐全。房间采光良好，带独立卫浴、浴室烘干机。可养宠物，欢迎留学生及上班族入住。",
 
-    latitude: 35.7289,
-    longitude: 139.7101,
-
     contactName: "山田 太郎",
     company: "Sakura Home",
     phone: "090-1234-5678",
-    email: "info@sakurahome.jp",
-
-    contact: {
-      name: "田中",
-      company: "东京房屋株式会社",
-      phone: "090-1234-5678",
-      email: "house@example.com",
-    },
+    email: "info@example.com",
   },
 
   {
@@ -104,7 +81,7 @@ export const houses: House[] = [
 
     title: "新宿 Studio",
 
-    rent: "¥75,000 / 月",
+    rent: "¥75,000",
     managementFee: "¥5,000",
 
     deposit: "1个月",
@@ -136,20 +113,10 @@ export const houses: House[] = [
     description:
       "新宿核心区域，步行5分钟可达地铁站。家具家电齐全，可拎包入住。附近商业设施完善，生活便利。",
 
-    latitude: 35.6938,
-    longitude: 139.7034,
-
     contactName: "佐藤 花子",
     company: "Tokyo House",
     phone: "080-8888-9999",
-    email: "contact@tokyohouse.jp",
-
-    contact: {
-      name: "田中",
-      company: "东京房屋株式会社",
-      phone: "090-1234-5678",
-      email: "house@example.com",
-    },
+    email: "contact@example.com",
   },
 
   {
@@ -157,7 +124,7 @@ export const houses: House[] = [
 
     title: "高田马场 1K",
 
-    rent: "¥82,000 / 月",
+    rent: "¥82,000",
     managementFee: "¥6,000",
 
     deposit: "1个月",
@@ -189,20 +156,10 @@ export const houses: House[] = [
     description:
       "高田马场站步行6分钟，交通便利。适合学生和上班族，周边餐饮、超市和便利店较多。",
 
-    latitude: 35.7126,
-    longitude: 139.7038,
-
     contactName: "铃木 健",
     company: "Sakura Home",
     phone: "090-2222-3333",
     email: "takadanobaba@example.com",
-
-    contact: {
-      name: "铃木",
-      company: "Sakura Home",
-      phone: "090-2222-3333",
-      email: "takadanobaba@example.com",
-    },
   },
 
   {
@@ -210,7 +167,7 @@ export const houses: House[] = [
 
     title: "中野 1DK",
 
-    rent: "¥92,000 / 月",
+    rent: "¥92,000",
     managementFee: "¥5,000",
 
     deposit: "1个月",
@@ -242,20 +199,10 @@ export const houses: House[] = [
     description:
       "中野站步行7分钟。房间面积30㎡，南向采光良好，可咨询宠物入住条件。",
 
-    latitude: 35.7056,
-    longitude: 139.6657,
-
     contactName: "高桥 美咲",
     company: "Tokyo Living",
     phone: "080-3333-4444",
     email: "nakano@example.com",
-
-    contact: {
-      name: "高桥",
-      company: "Tokyo Living",
-      phone: "080-3333-4444",
-      email: "nakano@example.com",
-    },
   },
 
   {
@@ -263,7 +210,7 @@ export const houses: House[] = [
 
     title: "大阪难波 1K",
 
-    rent: "¥68,000 / 月",
+    rent: "¥68,000",
     managementFee: "¥5,000",
 
     deposit: "0个月",
@@ -295,20 +242,10 @@ export const houses: House[] = [
     description:
       "难波生活圈，家具家电齐全，适合刚到大阪生活的学生和上班族。",
 
-    latitude: 34.6661,
-    longitude: 135.5003,
-
     contactName: "松本 翔",
     company: "Osaka Home",
     phone: "080-5555-6666",
     email: "namba@example.com",
-
-    contact: {
-      name: "松本",
-      company: "Osaka Home",
-      phone: "080-5555-6666",
-      email: "namba@example.com",
-    },
   },
 
   {
@@ -316,7 +253,7 @@ export const houses: House[] = [
 
     title: "横滨关内 1LDK",
 
-    rent: "¥96,000 / 月",
+    rent: "¥96,000",
     managementFee: "¥7,000",
 
     deposit: "1个月",
@@ -348,40 +285,45 @@ export const houses: House[] = [
     description:
       "关内站附近，适合希望住在横滨市中心的人群。周边交通和商业设施完善。",
 
-    latitude: 35.4437,
-    longitude: 139.638,
-
     contactName: "伊藤 直树",
     company: "Yokohama Living",
     phone: "090-7777-8888",
     email: "yokohama@example.com",
-
-    contact: {
-      name: "伊藤",
-      company: "Yokohama Living",
-      phone: "090-7777-8888",
-      email: "yokohama@example.com",
-    },
   },
 ];
 
 /*
-|--------------------------------------------------------------------------
-| TODO [API - GET]
-|--------------------------------------------------------------------------
-|
-| 房源列表
-|
-| GET /api/houses
-|
-| Query:
-| {
-|   page?: number,
-|   region?: string,
-|   feature?: string,
-|   q?: string,
-|   sort?: "latest" | "rent-asc" | "rent-desc"
-| }
-|
-|--------------------------------------------------------------------------
+TODO [API - GET]
+
+房源列表
+GET /api/houses
+
+Query:
+{
+  q?: string;
+  region?: string;
+  layout?: string;
+  features?: string[];
+  sort?: "latest" | "rentAsc" | "rentDesc" | "areaDesc";
+  page?: number;
+  limit?: number;
+}
+
+用途：
+- 房源搜索
+- 地区筛选
+- 户型筛选
+- 房源特点筛选
+- 排序
+- 分页
+
+--------------------------------------------------
+
+TODO [API - GET]
+
+房源详情
+GET /api/houses/:id
+
+用途：
+根据房源 ID 获取完整房源信息。
 */

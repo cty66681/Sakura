@@ -1,168 +1,180 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import {
-  Search,
-  MapPin,
   BriefcaseBusiness,
-  ShieldCheck,
   ChevronDown,
+  Search,
+  ShieldCheck,
   SlidersHorizontal,
+  X,
 } from "lucide-react";
 
 import Container from "@/components/layout/Container";
 import JobCard from "@/components/home/JobCard/JobCard";
-import Header from "@/components/layout/Hearder";
 
-
-interface Job {
-  id: number;
-  company: string;
-  title: string;
-  location: string;
-  salary: string;
-  tags: string[];
-  publishTime: string;
-  verified?: boolean;
-}
-
-const jobs: Job[] = [
-  {
-    id: 1,
-    company: "Mercari",
-    title: "Java Backend Engineer",
-    location: "东京 · 涩谷",
-    salary: "¥700,000 ~ ¥900,000",
-    publishTime: "2小时前",
-    verified: true,
-    tags: ["Java", "Spring Boot", "AWS", "React"],
-  },
-
-  {
-    id: 2,
-    company: "PayPay",
-    title: "Frontend Engineer",
-    location: "东京 · 港区",
-    salary: "¥650,000 ~ ¥850,000",
-    publishTime: "5小时前",
-    verified: true,
-    tags: ["React", "TypeScript", "Next.js"],
-  },
-
-  {
-    id: 3,
-    company: "Rakuten",
-    title: "Full Stack Engineer",
-    location: "东京 · 世田谷",
-    salary: "¥650,000 ~ ¥950,000",
-    publishTime: "今天",
-    verified: true,
-    tags: ["Java", "React", "AWS"],
-  },
-
-  {
-    id: 4,
-    company: "LINEヤフー",
-    title: "Frontend Developer",
-    location: "东京 · 千代田",
-    salary: "¥600,000 ~ ¥850,000",
-    publishTime: "今天",
-    verified: true,
-    tags: ["Vue", "TypeScript", "JavaScript"],
-  },
-
-  {
-    id: 5,
-    company: "CyberAgent",
-    title: "Backend Engineer",
-    location: "东京 · 涩谷",
-    salary: "¥700,000 ~ ¥1,000,000",
-    publishTime: "昨天",
-    verified: true,
-    tags: ["Go", "Python", "AWS"],
-  },
-
-  {
-    id: 6,
-    company: "Indeed Japan",
-    title: "Software Engineer",
-    location: "东京 · 港区",
-    salary: "¥750,000 ~ ¥1,050,000",
-    publishTime: "昨天",
-    verified: true,
-    tags: ["Python", "React", "AWS"],
-  },
-  {
-    id: 7,
-    company: "Indeed Japan",
-    title: "Software Engineer",
-    location: "东京 · 港区",
-    salary: "¥750,000 ~ ¥1,050,000",
-    publishTime: "昨天",
-    verified: true,
-    tags: ["Python", "React", "AWS"],
-  },
-];
+import { jobs } from "@/data/jobs";
 
 const regions = [
   "全部地区",
   "东京",
+  "神奈川",
   "大阪",
   "京都",
-  "名古屋",
+  "爱知",
   "福冈",
-];
+] as const;
 
 const jobTypes = [
   "全部",
-  "正社員",
-  "契約社員",
+  "全职",
   "兼职",
   "实习",
-];
+] as const;
+
+const workStyles = [
+  "全部",
+  "远程",
+  "混合",
+  "现场",
+] as const;
 
 const quickFilters = [
   {
     key: "verified",
-    label: "✓ 企业认证",
+    label: "企业认证",
   },
   {
     key: "highSalary",
-    label: "¥ 高薪职位",
+    label: "高薪职位",
   },
   {
     key: "tech",
-    label: "⌘ IT 技术",
+    label: "IT 技术",
   },
   {
     key: "tokyo",
-    label: "📍 东京",
+    label: "东京",
   },
-];
+] as const;
+
+type Region = (typeof regions)[number];
+type JobType = (typeof jobTypes)[number];
+type WorkStyle = (typeof workStyles)[number];
+type QuickFilter =
+  (typeof quickFilters)[number]["key"];
 
 const PAGE_SIZE = 6;
 
-export default function JobsPage() {
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
-  const [region, setRegion] = useState("全部地区");
-  const [jobType, setJobType] = useState("全部");
-  const [sort, setSort] = useState("recommended");
-  const [quickFilter, setQuickFilter] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
+/*
+|--------------------------------------------------------------------------
+| TODO [API - GET]
+|--------------------------------------------------------------------------
+|
+| 工作列表
+|
+| GET /api/jobs
+|
+| Query:
+| {
+|   q?: string,
+|   region?: string,
+|   employmentType?: string,
+|   remote?: string,
+|   verified?: boolean,
+|   category?: string,
+|   salary?: string,
+|   sort?: "latest" | "salary-desc",
+|   page?: number,
+|   limit?: number
+| }
+|
+| 当前阶段使用 "@/data/jobs" Mock 数据进行前端筛选。
+|
+|--------------------------------------------------------------------------
+*/
 
-  const handleSearch = () => {
-    setSearch(searchInput.trim());
+function getMaxSalary(salary: string) {
+  const numbers =
+    salary.match(/[\d,]+/g)?.map((value) =>
+      Number(value.replace(/,/g, ""))
+    ) ?? [];
+
+  return numbers.length
+    ? Math.max(...numbers)
+    : 0;
+}
+
+export default function JobsPage() {
+  const [searchInput, setSearchInput] =
+    useState("");
+
+  const [search, setSearch] =
+    useState("");
+
+  const [region, setRegion] =
+    useState<Region>("全部地区");
+
+  const [jobType, setJobType] =
+    useState<JobType>("全部");
+
+  const [workStyle, setWorkStyle] =
+    useState<WorkStyle>("全部");
+
+  const [sort, setSort] =
+    useState("recommended");
+
+  const [quickFiltersActive, setQuickFiltersActive] =
+    useState<QuickFilter[]>([]);
+
+  const [page, setPage] =
+    useState(1);
+
+  function resetPage() {
     setPage(1);
-  };
+  }
+
+  function handleSearch() {
+    setSearch(searchInput.trim());
+    resetPage();
+  }
+
+  function toggleQuickFilter(
+    key: QuickFilter
+  ) {
+    setQuickFiltersActive((current) =>
+      current.includes(key)
+        ? current.filter(
+            (item) => item !== key
+          )
+        : [...current, key]
+    );
+
+    resetPage();
+  }
+
+  function clearFilters() {
+    setSearchInput("");
+    setSearch("");
+
+    setRegion("全部地区");
+    setJobType("全部");
+    setWorkStyle("全部");
+
+    setQuickFiltersActive([]);
+
+    setSort("recommended");
+    setPage(1);
+  }
 
   const filteredJobs = useMemo(() => {
     let result = [...jobs];
 
-    // 搜索
-    if (search.trim()) {
-      const keyword = search.trim().toLowerCase();
+    /* Search */
+
+    if (search) {
+      const keyword =
+        search.toLowerCase();
 
       result = result.filter((job) =>
         [
@@ -170,6 +182,10 @@ export default function JobsPage() {
           job.title,
           job.location,
           job.salary,
+          job.employmentType,
+          job.remote,
+          job.experience,
+          job.language,
           ...job.tags,
         ]
           .join(" ")
@@ -178,73 +194,124 @@ export default function JobsPage() {
       );
     }
 
-    // 地区
+    /* Region */
+
     if (region !== "全部地区") {
       result = result.filter((job) =>
         job.location.includes(region)
       );
     }
 
-    // 企业类型
-    // 目前 mock 数据没有 employmentType，
-    // 所以正式接数据后再启用。
+    /* Employment */
+
     if (jobType !== "全部") {
-      // 暂时不筛选
-    }
-
-    // 快速筛选
-    if (quickFilter === "verified") {
-      result = result.filter((job) => job.verified);
-    }
-
-    if (quickFilter === "highSalary") {
-      result = result.filter((job) =>
-        job.salary.includes("900,000") ||
-        job.salary.includes("950,000") ||
-        job.salary.includes("1,000,000") ||
-        job.salary.includes("1,050,000")
+      result = result.filter(
+        (job) =>
+          job.employmentType === jobType
       );
     }
 
-    if (quickFilter === "tech") {
-      result = result.filter((job) =>
-        job.tags.some((tag) =>
-          [
-            "Java",
-            "Spring Boot",
-            "AWS",
-            "React",
-            "TypeScript",
-            "Next.js",
-            "Python",
-            "Go",
-            "Vue",
-          ].includes(tag)
-        )
+    /* Work style */
+
+    if (workStyle !== "全部") {
+      result = result.filter(
+        (job) =>
+          job.remote === workStyle
       );
     }
 
-    if (quickFilter === "tokyo") {
+    /* Verified */
+
+    if (
+      quickFiltersActive.includes(
+        "verified"
+      )
+    ) {
+      result = result.filter(
+        (job) => job.verified
+      );
+    }
+
+    /* High salary */
+
+    if (
+      quickFiltersActive.includes(
+        "highSalary"
+      )
+    ) {
+      result = result.filter(
+        (job) =>
+          getMaxSalary(job.salary) >=
+          800000
+      );
+    }
+
+    /* IT */
+
+    if (
+      quickFiltersActive.includes("tech")
+    ) {
+      const techKeywords = [
+        "it",
+        "java",
+        "python",
+        "react",
+        "typescript",
+        "next.js",
+        "aws",
+        "spring",
+        "backend",
+        "frontend",
+        "engineer",
+        "ai",
+        "go",
+      ];
+
+      result = result.filter((job) => {
+        const text = [
+          job.title,
+          ...job.tags,
+        ]
+          .join(" ")
+          .toLowerCase();
+
+        return techKeywords.some(
+          (keyword) =>
+            text.includes(keyword)
+        );
+      });
+    }
+
+    /* Tokyo */
+
+    if (
+      quickFiltersActive.includes("tokyo")
+    ) {
       result = result.filter((job) =>
         job.location.includes("东京")
       );
     }
 
-    // 排序
+    /* Sort */
+
     if (sort === "salary") {
-      result.sort((a, b) => {
-        const aSalary =
-          parseInt(
-            a.salary.replace(/[^0-9]/g, "")
-          ) || 0;
+      result.sort(
+        (a, b) =>
+          getMaxSalary(b.salary) -
+          getMaxSalary(a.salary)
+      );
+    }
 
-        const bSalary =
-          parseInt(
-            b.salary.replace(/[^0-9]/g, "")
-          ) || 0;
-
-        return bSalary - aSalary;
-      });
+    if (sort === "latest") {
+      result.sort(
+        (a, b) =>
+          new Date(
+            b.publishTime
+          ).getTime() -
+          new Date(
+            a.publishTime
+          ).getTime()
+      );
     }
 
     return result;
@@ -252,505 +319,673 @@ export default function JobsPage() {
     search,
     region,
     jobType,
+    workStyle,
     sort,
-    quickFilter,
+    quickFiltersActive,
   ]);
 
   const totalPages = Math.max(
     1,
-    Math.ceil(filteredJobs.length / PAGE_SIZE)
+    Math.ceil(
+      filteredJobs.length / PAGE_SIZE
+    )
   );
 
-  const currentPage = Math.min(page, totalPages);
-
-  const currentJobs = filteredJobs.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE
+  const currentPage = Math.min(
+    page,
+    totalPages
   );
 
-  function resetPage() {
-    setPage(1);
-  }
-
-  function changeQuickFilter(key: string) {
-    setQuickFilter(
-      quickFilter === key ? null : key
+  const currentJobs =
+    filteredJobs.slice(
+      (currentPage - 1) *
+        PAGE_SIZE,
+      currentPage * PAGE_SIZE
     );
 
-    resetPage();
-  }
+  const hasFilters =
+    search !== "" ||
+    region !== "全部地区" ||
+    jobType !== "全部" ||
+    workStyle !== "全部" ||
+    quickFiltersActive.length > 0;
 
   return (
     <main className="min-h-screen bg-slate-950">
-
       {/* ================================================= */}
-      {/* Hero */}
+      {/* HERO */}
       {/* ================================================= */}
 
-      <section className="relative overflow-hidden">
+      <section
+        className="
+          relative
+          overflow-hidden
+          border-b
+          border-white/5
+        "
+      >
+        {/* Glow */}
 
-        {/* Background glow */}
-
-        <div className="absolute inset-0">
-
-          <div className="
+        <div
+          className="
+            pointer-events-none
             absolute
             -left-40
             -top-40
-            h-96
-            w-96
+            h-[500px]
+            w-[500px]
             rounded-full
             bg-blue-600/20
             blur-3xl
-          " />
+          "
+        />
 
-          <div className="
+        <div
+          className="
+            pointer-events-none
             absolute
             right-0
-            top-20
-            h-96
-            w-96
+            top-0
+            h-[480px]
+            w-[480px]
             rounded-full
-            bg-violet-600/20
+            bg-violet-600/15
             blur-3xl
-          " />
+          "
+        />
 
-        </div>
+        {/* Grid */}
+
+        <div
+          className="
+            pointer-events-none
+            absolute
+            inset-0
+            opacity-[0.025]
+            [background-image:linear-gradient(to_right,#fff_1px,transparent_1px),linear-gradient(to_bottom,#fff_1px,transparent_1px)]
+            [background-size:48px_48px]
+          "
+        />
 
         <Container>
-
-          <div className="relative px-4 pb-14 pt-16">
-
-            {/* Label */}
-
-            <div className="
-              mb-5
-              inline-flex
-              items-center
-              gap-2
-              rounded-full
-              border
-              border-blue-400/20
-              bg-blue-400/10
+          <div
+            className="
+              relative
               px-4
-              py-2
-              text-sm
-              font-medium
-              text-blue-300
-            ">
-              <BriefcaseBusiness size={16} />
+              pb-16
+              pt-16
+              sm:pb-20
+              sm:pt-20
+            "
+          >
+            {/* Badge */}
 
-              JAPAN JOBS
+            <div
+              className="
+                inline-flex
+                items-center
+                gap-2
+                rounded-full
+                border
+                border-blue-400/20
+                bg-blue-400/10
+                px-4
+                py-2
+                text-sm
+                font-bold
+                text-blue-300
+              "
+            >
+              <BriefcaseBusiness
+                size={16}
+              />
+
+              SAKURA JOBS
             </div>
 
             {/* Title */}
 
-            <h1 className="
-              max-w-3xl
-              text-4xl
-              font-bold
-              tracking-tight
-              text-white
-              sm:text-5xl
-            ">
-              找到真正适合你的
-              <span className="
-                ml-2
-                bg-gradient-to-r
-                from-blue-400
-                to-violet-400
-                bg-clip-text
-                text-transparent
-              ">
-                日本工作
+            <h1
+              className="
+                mt-6
+                max-w-4xl
+                text-4xl
+                font-black
+                tracking-tight
+                text-white
+                sm:text-5xl
+                lg:text-6xl
+              "
+            >
+              在日本，找到更适合你的
+              <span
+                className="
+                  ml-2
+                  bg-gradient-to-r
+                  from-blue-400
+                  via-sky-300
+                  to-violet-400
+                  bg-clip-text
+                  text-transparent
+                "
+              >
+                工作机会
               </span>
             </h1>
 
-            <p className="
-              mt-5
-              max-w-2xl
-              text-base
-              leading-8
-              text-slate-400
-            ">
-              正社員、兼职、IT、留学生就业，
-              从找工作到就职，一站解决。
+            <p
+              className="
+                mt-5
+                max-w-2xl
+                text-base
+                leading-8
+                text-slate-400
+                sm:text-lg
+              "
+            >
+              搜索职位、公司和技术栈，
+              根据地区、雇佣方式和工作方式快速筛选。
             </p>
 
             {/* Search */}
 
             <div className="mt-10 max-w-4xl">
-
-              <div className="
-                flex
-                overflow-hidden
-                rounded-2xl
-                border
-                border-white/10
-                bg-white
-                shadow-2xl
-              ">
-
+              <div
+                className="
+                  flex
+                  overflow-hidden
+                  rounded-2xl
+                  border
+                  border-white/10
+                  bg-white
+                  shadow-2xl
+                  shadow-black/20
+                "
+              >
                 <div
                   className="
                     flex
+                    min-w-0
                     flex-1
                     items-center
                   "
                 >
-
                   <Search
                     size={20}
-                    className="ml-5 text-slate-400"
+                    className="
+                      ml-5
+                      shrink-0
+                      text-slate-400
+                    "
                   />
 
                   <input
                     value={searchInput}
-                    onChange={(e) => {
-                      setSearchInput(e.target.value);
-                    }}
+                    onChange={(e) =>
+                      setSearchInput(
+                        e.target.value
+                      )
+                    }
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") {
+                      if (
+                        e.key === "Enter"
+                      ) {
                         handleSearch();
                       }
                     }}
-                    placeholder="搜索职位、公司、技术栈..."
+                    placeholder="职位、公司、Python、Java、React..."
                     className="
-                      w-full
+                      min-w-0
+                      flex-1
                       bg-transparent
                       px-4
                       py-5
                       text-sm
                       text-slate-900
                       outline-none
+                      placeholder:text-slate-400
                     "
                   />
-
                 </div>
 
                 <button
+                  type="button"
                   onClick={handleSearch}
                   className="
+                    shrink-0
                     bg-blue-600
-                    px-8
+                    px-7
                     text-sm
-                    font-semibold
+                    font-bold
                     text-white
                     transition
                     hover:bg-blue-700
+                    sm:px-10
                   "
                 >
-                  搜索
+                  搜索工作
                 </button>
-
               </div>
-
             </div>
 
             {/* Quick filters */}
 
-            <div className="mt-7 flex flex-wrap gap-3">
+            <div
+              className="
+                mt-6
+                flex
+                flex-wrap
+                gap-2.5
+              "
+            >
+              {quickFilters.map(
+                (filter) => {
+                  const active =
+                    quickFiltersActive.includes(
+                      filter.key
+                    );
 
-              {quickFilters.map((filter) => {
-
-                const active =
-                  quickFilter === filter.key;
-
-                return (
-                  <button
-                    key={filter.key}
-                    onClick={() =>
-                      changeQuickFilter(filter.key)
-                    }
-                    className={`
-                      rounded-full
-                      border
-                      px-4
-                      py-2.5
-                      text-sm
-                      font-medium
-                      transition
-                      ${
-                        active
-                          ? "border-blue-500 bg-blue-500 text-white"
-                          : "border-white/10 bg-white/5 text-slate-300 hover:border-blue-400/40 hover:bg-white/10"
+                  return (
+                    <button
+                      key={filter.key}
+                      type="button"
+                      onClick={() =>
+                        toggleQuickFilter(
+                          filter.key
+                        )
                       }
-                    `}
-                  >
-                    {filter.label}
-                  </button>
-                );
-              })}
-
+                      className={`
+                        rounded-full
+                        border
+                        px-4
+                        py-2.5
+                        text-sm
+                        font-semibold
+                        transition
+                        ${
+                          active
+                            ? "border-blue-400 bg-blue-500 text-white"
+                            : "border-white/10 bg-white/5 text-slate-300 hover:border-white/20 hover:bg-white/10 hover:text-white"
+                        }
+                      `}
+                    >
+                      {filter.label}
+                    </button>
+                  );
+                }
+              )}
             </div>
-
           </div>
-
         </Container>
-
       </section>
 
-
       {/* ================================================= */}
-      {/* Content */}
+      {/* CONTENT */}
       {/* ================================================= */}
 
-      <section className="
-        rounded-t-[2rem]
-        bg-slate-50
-        py-10
-      ">
-
+      <section
+        className="
+          rounded-t-[32px]
+          bg-slate-50
+          py-10
+          sm:py-12
+        "
+      >
         <Container>
-
-          <div className="
-            grid
-            gap-8
-            lg:grid-cols-[240px_1fr]
-          ">
-
+          <div
+            className="
+              grid
+              gap-8
+              lg:grid-cols-[250px_minmax(0,1fr)]
+            "
+          >
             {/* ================================================= */}
-            {/* Sidebar */}
+            {/* SIDEBAR */}
             {/* ================================================= */}
 
-            <aside className="
-              h-fit
-              rounded-2xl
-              border
-              border-slate-200
-              bg-white
-              p-5
-              shadow-sm
-            ">
+            <aside
+              className="
+                h-fit
+                rounded-[24px]
+                border
+                border-slate-200
+                bg-white
+                p-5
+                shadow-sm
+                lg:sticky
+                lg:top-24
+              "
+            >
+              <div
+                className="
+                  flex
+                  items-center
+                  justify-between
+                "
+              >
+                <div
+                  className="
+                    flex
+                    items-center
+                    gap-2
+                    text-slate-900
+                  "
+                >
+                  <SlidersHorizontal
+                    size={18}
+                  />
 
-              <div className="
-                flex
-                items-center
-                gap-2
-                text-slate-900
-              ">
+                  <h2 className="font-bold">
+                    筛选职位
+                  </h2>
+                </div>
 
-                <SlidersHorizontal size={18} />
-
-                <h2 className="font-semibold">
-                  筛选职位
-                </h2>
-
+                {hasFilters && (
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="
+                      text-xs
+                      font-bold
+                      text-slate-400
+                      transition
+                      hover:text-blue-600
+                    "
+                  >
+                    清除
+                  </button>
+                )}
               </div>
-
 
               {/* Region */}
 
               <div className="mt-7">
-
-                <p className="
-                  text-xs
-                  font-semibold
-                  uppercase
-                  tracking-wider
-                  text-slate-400
-                ">
+                <p
+                  className="
+                    text-xs
+                    font-bold
+                    uppercase
+                    tracking-wider
+                    text-slate-400
+                  "
+                >
                   工作地区
                 </p>
 
                 <div className="mt-3 space-y-1">
-
-                  {regions.map((item) => (
-
-                    <button
-                      key={item}
-                      onClick={() => {
-                        setRegion(item);
-                        resetPage();
-                      }}
-                      className={`
-                        w-full
-                        rounded-xl
-                        px-3
-                        py-2.5
-                        text-left
-                        text-sm
-                        transition
-                        ${
-                          region === item
-                            ? "bg-blue-50 font-semibold text-blue-600"
-                            : "text-slate-600 hover:bg-slate-50"
-                        }
-                      `}
-                    >
-                      {item}
-                    </button>
-
-                  ))}
-
+                  {regions.map(
+                    (item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => {
+                          setRegion(item);
+                          resetPage();
+                        }}
+                        className={`
+                          w-full
+                          rounded-xl
+                          px-3
+                          py-2.5
+                          text-left
+                          text-sm
+                          transition
+                          ${
+                            region ===
+                            item
+                              ? "bg-blue-50 font-bold text-blue-600"
+                              : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                          }
+                        `}
+                      >
+                        {item}
+                      </button>
+                    )
+                  )}
                 </div>
-
               </div>
 
+              {/* Employment */}
 
-              {/* Job Type */}
-
-              <div className="mt-7">
-
-                <p className="
-                  text-xs
-                  font-semibold
-                  uppercase
-                  tracking-wider
-                  text-slate-400
-                ">
-                  工作类型
+              <div
+                className="
+                  mt-7
+                  border-t
+                  border-slate-100
+                  pt-6
+                "
+              >
+                <p
+                  className="
+                    text-xs
+                    font-bold
+                    uppercase
+                    tracking-wider
+                    text-slate-400
+                  "
+                >
+                  雇佣类型
                 </p>
 
                 <div className="mt-3 space-y-3">
-
-                  {jobTypes.map((type) => (
-
-                    <label
-                      key={type}
-                      className="
-                        flex
-                        cursor-pointer
-                        items-center
-                        gap-3
-                        text-sm
-                        text-slate-600
-                      "
-                    >
-
-                      <input
-                        type="radio"
-                        name="jobType"
-                        checked={jobType === type}
-                        onChange={() => {
-                          setJobType(type);
-                          resetPage();
-                        }}
+                  {jobTypes.map(
+                    (type) => (
+                      <label
+                        key={type}
                         className="
-                          accent-blue-600
+                          flex
+                          cursor-pointer
+                          items-center
+                          gap-3
+                          text-sm
+                          text-slate-600
                         "
-                      />
+                      >
+                        <input
+                          type="radio"
+                          name="jobType"
+                          checked={
+                            jobType === type
+                          }
+                          onChange={() => {
+                            setJobType(type);
+                            resetPage();
+                          }}
+                          className="accent-blue-600"
+                        />
 
-                      {type}
-
-                    </label>
-
-                  ))}
-
+                        {type}
+                      </label>
+                    )
+                  )}
                 </div>
-
               </div>
 
+              {/* Work style */}
+
+              <div
+                className="
+                  mt-7
+                  border-t
+                  border-slate-100
+                  pt-6
+                "
+              >
+                <p
+                  className="
+                    text-xs
+                    font-bold
+                    uppercase
+                    tracking-wider
+                    text-slate-400
+                  "
+                >
+                  工作方式
+                </p>
+
+                <div
+                  className="
+                    mt-3
+                    grid
+                    grid-cols-2
+                    gap-2
+                  "
+                >
+                  {workStyles.map(
+                    (style) => (
+                      <button
+                        key={style}
+                        type="button"
+                        onClick={() => {
+                          setWorkStyle(
+                            style
+                          );
+                          resetPage();
+                        }}
+                        className={`
+                          rounded-xl
+                          border
+                          px-2
+                          py-2.5
+                          text-xs
+                          font-semibold
+                          transition
+                          ${
+                            workStyle ===
+                            style
+                              ? "border-blue-200 bg-blue-50 text-blue-600"
+                              : "border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-900"
+                          }
+                        `}
+                      >
+                        {style}
+                      </button>
+                    )
+                  )}
+                </div>
+              </div>
 
               {/* Trust */}
 
-              <div className="
-                mt-7
-                rounded-xl
-                bg-emerald-50
-                p-4
-              ">
-
-                <div className="
-                  flex
-                  items-center
-                  gap-2
-                  text-emerald-700
-                ">
-
-                  <ShieldCheck size={17} />
-
-                  <span className="
-                    text-sm
-                    font-semibold
-                  ">
-                    我们更重视真实职位
-                  </span>
-
-                </div>
-
-                <p className="
-                  mt-2
-                  text-xs
-                  leading-5
-                  text-emerald-700/70
-                ">
-                  后期将加入企业认证、
-                  职位真实性以及避坑信息。
-                </p>
-
-              </div>
-
-            </aside>
-
-
-            {/* ================================================= */}
-            {/* Job Results */}
-            {/* ================================================= */}
-
-            <div>
-
-              {/* Top */}
-
-              <div className="
-                mb-6
-                flex
-                flex-col
-                gap-4
-                sm:flex-row
-                sm:items-end
-                sm:justify-between
-              ">
-
-                <div>
-
-                  <div className="
+              <div
+                className="
+                  mt-7
+                  rounded-2xl
+                  border
+                  border-emerald-100
+                  bg-emerald-50
+                  p-4
+                "
+              >
+                <div
+                  className="
                     flex
                     items-center
-                    gap-3
-                  ">
+                    gap-2
+                    text-emerald-700
+                  "
+                >
+                  <ShieldCheck
+                    size={17}
+                  />
 
-                    <h2 className="
-                      text-2xl
+                  <span
+                    className="
+                      text-sm
                       font-bold
-                      text-slate-900
-                    ">
-                      推荐职位
-                    </h2>
-
-                    <span className="
-                      rounded-full
-                      bg-blue-50
-                      px-3
-                      py-1
-                      text-xs
-                      font-semibold
-                      text-blue-600
-                    ">
-                      {filteredJobs.length}
-                    </span>
-
-                  </div>
-
-                  <p className="
-                    mt-2
-                    text-sm
-                    text-slate-500
-                  ">
-                    工作、兼职、就职机会持续更新
-                  </p>
-
+                    "
+                  >
+                    职位真实性
+                  </span>
                 </div>
 
+                <p
+                  className="
+                    mt-2
+                    text-xs
+                    leading-5
+                    text-emerald-700/70
+                  "
+                >
+                  Sakura 后续将加入企业认证、
+                  举报记录和职位风险提示。
+                </p>
+              </div>
+            </aside>
+
+            {/* ================================================= */}
+            {/* RESULTS */}
+            {/* ================================================= */}
+
+            <div className="min-w-0">
+              {/* Result header */}
+
+              <div
+                className="
+                  mb-6
+                  flex
+                  flex-col
+                  gap-4
+                  sm:flex-row
+                  sm:items-end
+                  sm:justify-between
+                "
+              >
+                <div>
+                  <div
+                    className="
+                      flex
+                      items-center
+                      gap-3
+                    "
+                  >
+                    <h2
+                      className="
+                        text-2xl
+                        font-black
+                        text-slate-900
+                      "
+                    >
+                      工作机会
+                    </h2>
+
+                    <span
+                      className="
+                        rounded-full
+                        bg-blue-50
+                        px-3
+                        py-1
+                        text-xs
+                        font-bold
+                        text-blue-600
+                      "
+                    >
+                      {
+                        filteredJobs.length
+                      }
+                    </span>
+                  </div>
+
+                  <p
+                    className="
+                      mt-2
+                      text-sm
+                      text-slate-500
+                    "
+                  >
+                    根据你的搜索和筛选条件显示职位
+                  </p>
+                </div>
 
                 {/* Sort */}
 
                 <div className="relative">
-
                   <select
                     value={sort}
                     onChange={(e) => {
-                      setSort(e.target.value);
+                      setSort(
+                        e.target.value
+                      );
                       resetPage();
                     }}
                     className="
@@ -763,21 +998,24 @@ export default function JobsPage() {
                       pl-4
                       pr-10
                       text-sm
+                      font-medium
                       text-slate-600
                       outline-none
                       transition
                       focus:border-blue-400
                     "
                   >
-
                     <option value="recommended">
                       推荐排序
+                    </option>
+
+                    <option value="latest">
+                      最新发布
                     </option>
 
                     <option value="salary">
                       薪资最高
                     </option>
-
                   </select>
 
                   <ChevronDown
@@ -791,110 +1029,226 @@ export default function JobsPage() {
                       text-slate-400
                     "
                   />
-
                 </div>
-
               </div>
 
+              {/* Active filters */}
+
+              {hasFilters && (
+                <div
+                  className="
+                    mb-6
+                    flex
+                    flex-wrap
+                    items-center
+                    gap-2
+                  "
+                >
+                  {search && (
+                    <FilterTag
+                      label={`搜索：${search}`}
+                      onRemove={() => {
+                        setSearch("");
+                        setSearchInput("");
+                        resetPage();
+                      }}
+                    />
+                  )}
+
+                  {region !==
+                    "全部地区" && (
+                    <FilterTag
+                      label={region}
+                      onRemove={() => {
+                        setRegion(
+                          "全部地区"
+                        );
+                        resetPage();
+                      }}
+                    />
+                  )}
+
+                  {jobType !==
+                    "全部" && (
+                    <FilterTag
+                      label={jobType}
+                      onRemove={() => {
+                        setJobType("全部");
+                        resetPage();
+                      }}
+                    />
+                  )}
+
+                  {workStyle !==
+                    "全部" && (
+                    <FilterTag
+                      label={workStyle}
+                      onRemove={() => {
+                        setWorkStyle(
+                          "全部"
+                        );
+                        resetPage();
+                      }}
+                    />
+                  )}
+
+                  {quickFiltersActive.map(
+                    (key) => {
+                      const item =
+                        quickFilters.find(
+                          (filter) =>
+                            filter.key ===
+                            key
+                        );
+
+                      if (!item) {
+                        return null;
+                      }
+
+                      return (
+                        <FilterTag
+                          key={key}
+                          label={
+                            item.label
+                          }
+                          onRemove={() =>
+                            toggleQuickFilter(
+                              key
+                            )
+                          }
+                        />
+                      );
+                    }
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="
+                      ml-1
+                      text-xs
+                      font-bold
+                      text-slate-400
+                      transition
+                      hover:text-blue-600
+                    "
+                  >
+                    清除全部
+                  </button>
+                </div>
+              )}
 
               {/* Cards */}
 
-              {currentJobs.length > 0 ? (
-
-                <div className="space-y-5">
-
-                  {currentJobs.map((job) => (
-
-                    <JobCard
-                      key={job.id}
-                      id={job.id}
-                      company={job.company}
-                      title={job.title}
-                      location={job.location}
-                      salary={job.salary}
-                      tags={job.tags}
-                      publishTime={job.publishTime}
-                      verified={job.verified}
-                    />
-
-                  ))}
-
+              {currentJobs.length >
+              0 ? (
+                <div
+                  className="
+                    grid
+                    grid-cols-1
+                    gap-5
+                    xl:grid-cols-2
+                  "
+                >
+                  {currentJobs.map(
+                    (job) => (
+                      <JobCard
+                        key={job.id}
+                        {...job}
+                      />
+                    )
+                  )}
                 </div>
-
               ) : (
-
-                <div className="
-                  rounded-2xl
-                  border
-                  border-dashed
-                  border-slate-300
-                  bg-white
-                  px-6
-                  py-20
-                  text-center
-                ">
-
-                  <div className="text-4xl">
-                    🔍
+                <div
+                  className="
+                    rounded-[24px]
+                    border
+                    border-dashed
+                    border-slate-300
+                    bg-white
+                    px-6
+                    py-20
+                    text-center
+                  "
+                >
+                  <div
+                    className="
+                      mx-auto
+                      flex
+                      h-14
+                      w-14
+                      items-center
+                      justify-center
+                      rounded-2xl
+                      bg-slate-100
+                      text-slate-500
+                    "
+                  >
+                    <Search size={24} />
                   </div>
 
-                  <h3 className="
-                    mt-4
-                    font-semibold
-                    text-slate-900
-                  ">
+                  <h3
+                    className="
+                      mt-5
+                      font-bold
+                      text-slate-900
+                    "
+                  >
                     没有找到符合条件的职位
                   </h3>
 
-                  <p className="
-                    mt-2
-                    text-sm
-                    text-slate-500
-                  ">
-                    可以尝试更换关键词或筛选条件。
+                  <p
+                    className="
+                      mt-2
+                      text-sm
+                      text-slate-500
+                    "
+                  >
+                    可以换一个关键词，
+                    或减少一些筛选条件。
                   </p>
 
                   <button
-                    onClick={() => {
-                    setSearch("");
-                    setSearchInput("");
-                    setRegion("全部地区");
-                    setJobType("全部");
-                    setQuickFilter(null);
-                    setPage(1);
-                  }}
+                    type="button"
+                    onClick={clearFilters}
                     className="
                       mt-5
                       text-sm
-                      font-semibold
+                      font-bold
                       text-blue-600
+                      hover:text-blue-700
                     "
                   >
                     清除所有条件
                   </button>
-
                 </div>
-
               )}
-
 
               {/* Pagination */}
 
               {totalPages > 1 && (
-
-                <div className="
-                  mt-8
-                  flex
-                  items-center
-                  justify-center
-                  gap-2
-                ">
-
+                <div
+                  className="
+                    mt-10
+                    flex
+                    flex-wrap
+                    items-center
+                    justify-center
+                    gap-2
+                  "
+                >
                   <button
-                    disabled={currentPage === 1}
+                    type="button"
+                    disabled={
+                      currentPage === 1
+                    }
                     onClick={() =>
                       setPage((value) =>
-                        Math.max(1, value - 1)
+                        Math.max(
+                          1,
+                          value - 1
+                        )
                       )
                     }
                     className="
@@ -905,48 +1259,55 @@ export default function JobsPage() {
                       px-4
                       py-2.5
                       text-sm
+                      font-medium
                       text-slate-600
                       transition
-                      hover:border-blue-300
+                      hover:border-slate-300
                       disabled:cursor-not-allowed
                       disabled:opacity-40
                     "
                   >
-                    ←
+                    上一页
                   </button>
 
-
                   {Array.from(
-                    { length: totalPages },
-                    (_, index) => index + 1
+                    {
+                      length:
+                        totalPages,
+                    },
+                    (_, index) =>
+                      index + 1
                   ).map((number) => (
-
                     <button
                       key={number}
-                      onClick={() => setPage(number)}
+                      type="button"
+                      onClick={() =>
+                        setPage(number)
+                      }
                       className={`
                         h-10
                         w-10
                         rounded-xl
                         text-sm
-                        font-medium
+                        font-bold
                         transition
                         ${
-                          currentPage === number
-                            ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
-                            : "border border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-600"
+                          currentPage ===
+                          number
+                            ? "bg-slate-950 text-white"
+                            : "border border-slate-200 bg-white text-slate-600 hover:border-slate-400"
                         }
                       `}
                     >
                       {number}
                     </button>
-
                   ))}
 
-
                   <button
+                    type="button"
                     disabled={
-                      currentPage === totalPages
+                      currentPage ===
+                      totalPages
                     }
                     onClick={() =>
                       setPage((value) =>
@@ -964,28 +1325,70 @@ export default function JobsPage() {
                       px-4
                       py-2.5
                       text-sm
+                      font-medium
                       text-slate-600
                       transition
-                      hover:border-blue-300
+                      hover:border-slate-300
                       disabled:cursor-not-allowed
                       disabled:opacity-40
                     "
                   >
-                    →
+                    下一页
                   </button>
-
                 </div>
-
               )}
-
             </div>
-
           </div>
-
         </Container>
-
       </section>
-
     </main>
+  );
+}
+
+function FilterTag({
+  label,
+  onRemove,
+}: {
+  label: string;
+  onRemove: () => void;
+}) {
+  return (
+    <div
+      className="
+        inline-flex
+        items-center
+        gap-1.5
+        rounded-full
+        border
+        border-blue-100
+        bg-blue-50
+        py-1.5
+        pl-3
+        pr-2
+        text-xs
+        font-semibold
+        text-blue-700
+      "
+    >
+      <span>{label}</span>
+
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label={`删除筛选条件 ${label}`}
+        className="
+          flex
+          h-5
+          w-5
+          items-center
+          justify-center
+          rounded-full
+          transition
+          hover:bg-blue-100
+        "
+      >
+        <X size={12} />
+      </button>
+    </div>
   );
 }
