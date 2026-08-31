@@ -1,7 +1,11 @@
 "use client";
 
-import { MapPin } from "lucide-react";
 import Link from "next/link";
+
+import {
+  ArrowRight,
+  MapPin,
+} from "lucide-react";
 
 import Avatar from "@/components/ui/Avatar";
 import Badge from "@/components/ui/Badge";
@@ -18,6 +22,7 @@ export interface JobCardProps {
   tags: string[];
   publishTime: string;
   verified?: boolean;
+  href?: string;
 }
 
 export default function JobCard({
@@ -29,33 +34,74 @@ export default function JobCard({
   tags,
   publishTime,
   verified,
+  href,
 }: JobCardProps) {
+  const detailHref =
+    href ?? `/jobs/${id}`;
+
   return (
-    <Link
-      href={`/jobs/${id}`}
-      className="block"
+    <Card
+      className="
+        group
+        relative
+        overflow-hidden
+        bg-white
+        p-0
+        transition-all
+        duration-300
+        hover:-translate-y-1
+        hover:shadow-xl
+      "
     >
-      <Card
+      {/* Favorite */}
+
+      <div
         className="
-          p-6
-          transition-all
-          duration-300
-          hover:-translate-y-1
-          hover:shadow-lg
+          absolute
+          right-5
+          top-5
+          z-20
         "
       >
-        {/* Header */}
+        <FavoriteButton />
+      </div>
 
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-4">
+      <Link
+        href={detailHref}
+        className="block h-full"
+      >
+        <div className="flex h-full flex-col p-6">
+          {/* Company */}
+
+          <div
+            className="
+              flex
+              items-start
+              gap-4
+              pr-12
+            "
+          >
             <Avatar
               name={company}
               size="lg"
             />
 
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-semibold text-slate-800">
+            <div className="min-w-0">
+              <div
+                className="
+                  flex
+                  flex-wrap
+                  items-center
+                  gap-2
+                "
+              >
+                <h3
+                  className="
+                    truncate
+                    font-bold
+                    text-slate-800
+                  "
+                >
                   {company}
                 </h3>
 
@@ -66,44 +112,141 @@ export default function JobCard({
                 )}
               </div>
 
-              <p className="mt-1 text-sm text-slate-500">
+              <p
+                className="
+                  mt-1
+                  text-xs
+                  text-slate-400
+                "
+              >
                 {publishTime}
               </p>
             </div>
           </div>
 
-          <FavoriteButton />
+          {/* Title */}
+
+          <h2
+            className="
+              mt-6
+              line-clamp-2
+              text-xl
+              font-black
+              leading-snug
+              text-slate-900
+              transition-colors
+              group-hover:text-blue-600
+            "
+          >
+            {title}
+          </h2>
+
+          {/* Salary */}
+
+          <p
+            className="
+              mt-4
+              text-2xl
+              font-black
+              tracking-tight
+              text-slate-950
+            "
+          >
+            {salary}
+          </p>
+
+          {/* Location */}
+
+          <div
+            className="
+              mt-4
+              flex
+              items-center
+              gap-2
+              text-sm
+              text-slate-500
+            "
+          >
+            <MapPin
+              size={16}
+              className="shrink-0"
+            />
+
+            <span className="line-clamp-1">
+              {location}
+            </span>
+          </div>
+
+          {/* Tags */}
+
+          <div
+            className="
+              mt-5
+              flex
+              flex-wrap
+              gap-2
+            "
+          >
+            {tags
+              .slice(0, 4)
+              .map((tag) => (
+                <Tag key={tag}>
+                  {tag}
+                </Tag>
+              ))}
+          </div>
+
+          {/* Bottom */}
+
+          <div
+            className="
+              mt-auto
+              pt-6
+            "
+          >
+            <div
+              className="
+                flex
+                items-center
+                justify-between
+                border-t
+                border-slate-100
+                pt-5
+              "
+            >
+              <span
+                className="
+                  text-sm
+                  font-bold
+                  text-slate-500
+                  transition-colors
+                  group-hover:text-slate-950
+                "
+              >
+                查看职位详情
+              </span>
+
+              <div
+                className="
+                  flex
+                  h-9
+                  w-9
+                  items-center
+                  justify-center
+                  rounded-full
+                  bg-slate-100
+                  text-slate-500
+                  transition-all
+                  group-hover:bg-slate-950
+                  group-hover:text-white
+                "
+              >
+                <ArrowRight size={16} />
+              </div>
+            </div>
+          </div>
         </div>
-
-        {/* Title */}
-
-        <h2 className="mt-6 text-2xl font-bold text-slate-900">
-          {title}
-        </h2>
-
-        {/* Salary */}
-
-        <p className="mt-4 text-3xl font-bold text-blue-600">
-          {salary}
-        </p>
-
-        {/* Location */}
-
-        <div className="mt-4 flex items-center gap-2 text-slate-500">
-          <MapPin size={18} />
-          {location}
-        </div>
-
-        {/* Tags */}
-
-        <div className="mt-6 flex flex-wrap gap-2">
-          {tags.map((tag) => (
-            <Tag key={tag}>
-              {tag}
-            </Tag>
-          ))}
-        </div>
-      </Card>
-    </Link>
+      </Link>
+    </Card>
   );
 }

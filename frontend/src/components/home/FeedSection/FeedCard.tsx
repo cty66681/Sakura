@@ -3,7 +3,6 @@ import FavoriteButton from "@/components/ui/FavoriteButton";
 
 import {
   Eye,
-  Heart,
   MapPin,
   MessageCircle,
   MoreHorizontal,
@@ -15,6 +14,7 @@ export interface FeedItem {
   type:
     | "job"
     | "house"
+    | "school"
     | "experience"
     | "scam"
     | "news";
@@ -42,41 +42,60 @@ interface FeedCardProps {
   item: FeedItem;
 }
 
-const badgeMap = {
+const badgeMap: Record<
+  FeedItem["type"],
+  {
+    text: string;
+    className: string;
+  }
+> = {
   job: {
     text: "工作",
-    className: "bg-blue-100 text-blue-700",
+    className:
+      "bg-blue-100 text-blue-700",
   },
 
   house: {
     text: "房源",
-    className: "bg-emerald-100 text-emerald-700",
+    className:
+      "bg-emerald-100 text-emerald-700",
+  },
+
+  school: {
+    text: "学校",
+    className:
+      "bg-indigo-100 text-indigo-700",
   },
 
   experience: {
     text: "经验",
-    className: "bg-orange-100 text-orange-700",
+    className:
+      "bg-orange-100 text-orange-700",
   },
 
   scam: {
-    text: "防骗",
-    className: "bg-red-100 text-red-700",
+    text: "避坑",
+    className:
+      "bg-red-100 text-red-700",
   },
 
   news: {
     text: "资讯",
-    className: "bg-violet-100 text-violet-700",
+    className:
+      "bg-violet-100 text-violet-700",
   },
 };
 
 export default function FeedCard({
   item,
 }: FeedCardProps) {
-  const badge = badgeMap[item.type];
+  const badge =
+    badgeMap[item.type];
 
   return (
     <Card
       className="
+        group
         cursor-pointer
         p-6
       "
@@ -84,9 +103,7 @@ export default function FeedCard({
       {/* Header */}
 
       <div className="flex items-center justify-between">
-
         <div className="flex items-center gap-3">
-
           <span
             className={`
               rounded-full
@@ -103,14 +120,24 @@ export default function FeedCard({
           <span className="text-sm text-slate-400">
             {item.publishTime}
           </span>
-
         </div>
 
-        <MoreHorizontal
-          size={18}
-          className="text-slate-400"
-        />
-
+        <button
+          type="button"
+          aria-label="更多操作"
+          className="
+            rounded-lg
+            p-1.5
+            text-slate-400
+            transition
+            hover:bg-slate-100
+            hover:text-slate-700
+          "
+        >
+          <MoreHorizontal
+            size={18}
+          />
+        </button>
       </div>
 
       {/* Title */}
@@ -122,7 +149,6 @@ export default function FeedCard({
           font-bold
           text-slate-900
           transition-colors
-
           group-hover:text-blue-600
         "
       >
@@ -135,8 +161,8 @@ export default function FeedCard({
         className="
           mt-3
           line-clamp-2
-          text-slate-500
           leading-7
+          text-slate-500
         "
       >
         {item.summary}
@@ -145,17 +171,27 @@ export default function FeedCard({
       {/* Cover */}
 
       {item.cover && (
-        <img
-          src={item.cover}
-          alt={item.title}
+        <div
           className="
             mt-6
-            h-52
-            w-full
+            overflow-hidden
             rounded-2xl
-            object-cover
+            bg-slate-100
           "
-        />
+        >
+          <img
+            src={item.cover}
+            alt={item.title}
+            className="
+              h-52
+              w-full
+              object-cover
+              transition
+              duration-500
+              group-hover:scale-[1.02]
+            "
+          />
+        </div>
       )}
 
       {/* Location */}
@@ -167,16 +203,13 @@ export default function FeedCard({
             flex
             items-center
             gap-2
-
             text-sm
-
             text-slate-500
           "
         >
           <MapPin size={16} />
 
           {item.location}
-
         </div>
       )}
 
@@ -185,74 +218,92 @@ export default function FeedCard({
       <div
         className="
           mt-6
-
           flex
-
           items-center
-
           justify-between
-
+          gap-4
           border-t
-
+          border-slate-100
           pt-5
         "
       >
-        <div className="flex items-center gap-6">
+        <div
+          className="
+            flex
+            items-center
+            gap-5
+          "
+        >
+          {/* Favorite */}
 
-          <div className="flex items-center gap-2 text-slate-500">
-
+          <div
+            className="
+              flex
+              items-center
+              gap-2
+              text-sm
+              text-slate-500
+            "
+          >
             <FavoriteButton
-                size={20}
+              size={20}
             />
 
             {item.likes}
-
           </div>
 
-          <div className="flex items-center gap-2 text-slate-500">
+          {/* Comment */}
 
+          <button
+            type="button"
+            className="
+              flex
+              items-center
+              gap-2
+              text-sm
+              text-slate-500
+              transition
+              hover:text-blue-600
+            "
+          >
             <MessageCircle
-                size={18}
-                className="
-                    cursor-pointer
-                    transition-all
-                    duration-200
-                    hover:text-blue-600"/>
+              size={18}
+            />
 
             {item.comments}
+          </button>
 
-          </div>
+          {/* Views */}
 
-          <div className="flex items-center gap-2 text-slate-500">
-
-            <Eye
-              size={18}
-              className="
-                  transition-colors
-                  hover:text-slate-800"/>
+          <div
+            className="
+              flex
+              items-center
+              gap-2
+              text-sm
+              text-slate-500
+            "
+          >
+            <Eye size={18} />
 
             {item.views}
-
           </div>
-
         </div>
 
         <button
+          type="button"
           className="
+            shrink-0
             text-sm
             font-semibold
             text-blue-600
-
             transition
-
             hover:translate-x-1
           "
         >
           阅读全文 →
         </button>
-
       </div>
-
     </Card>
   );
 }

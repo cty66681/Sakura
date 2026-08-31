@@ -4,15 +4,13 @@ import Link from "next/link";
 
 import Card from "@/components/ui/Card";
 import Tag from "@/components/ui/Tag";
-import Button from "@/components/ui/Button";
 import FavoriteButton from "@/components/ui/FavoriteButton";
 
 import {
+  ArrowRight,
   CalendarDays,
   GraduationCap,
   MapPin,
-  Star,
-  ArrowRight,
 } from "lucide-react";
 
 export interface SchoolCardProps {
@@ -22,6 +20,7 @@ export interface SchoolCardProps {
   location: string;
   deadline: string;
   tags: string[];
+  href: string;
 }
 
 export default function SchoolCard({
@@ -31,177 +30,180 @@ export default function SchoolCard({
   location,
   deadline,
   tags,
+  href,
 }: SchoolCardProps) {
   return (
-    <Link
-      href={`/schools/${id}`}
-      className="block"
+    <Card
+      className="
+        group
+        relative
+        overflow-hidden
+        p-0
+        transition-all
+        duration-300
+        hover:-translate-y-1
+        hover:shadow-xl
+      "
     >
-      <Card
-        className="
-          group
-          p-6
-          transition-all
-          duration-300
-          hover:-translate-y-2
-          hover:shadow-2xl
-        "
+      {/* Favorite */}
+
+      <div className="absolute right-5 top-5 z-20">
+        <FavoriteButton />
+      </div>
+
+      {/* Main clickable area */}
+
+      <Link
+        href={href}
+        className="block p-6"
       >
         {/* Header */}
 
-        <div className="flex items-start justify-between">
-
-          <div className="flex items-center gap-4">
-
-            <div
-              className="
-                flex
-                h-14
-                w-14
-                items-center
-                justify-center
-                rounded-2xl
-                bg-gradient-to-br
-                from-blue-500
-                to-cyan-500
-                text-white
-              "
-            >
-              <GraduationCap size={26} />
-            </div>
-
-            <div>
-
-              <div className="flex items-center gap-2">
-
-                <h3
-                  className="
-                    text-xl
-                    font-bold
-                    text-slate-900
-                    transition
-                    group-hover:text-blue-600
-                  "
-                >
-                  {name}
-                </h3>
-
-              </div>
-
-              <p className="mt-1 text-sm text-slate-500">
-                {type}
-              </p>
-
-            </div>
-
+        <div className="flex items-start gap-4 pr-12">
+          <div
+            className="
+              flex
+              h-12
+              w-12
+              shrink-0
+              items-center
+              justify-center
+              rounded-2xl
+              bg-blue-50
+              text-blue-600
+              transition
+              group-hover:bg-blue-600
+              group-hover:text-white
+            "
+          >
+            <GraduationCap size={23} />
           </div>
 
-          <FavoriteButton />
+          <div className="min-w-0">
+            <span
+              className="
+                inline-flex
+                rounded-full
+                bg-slate-100
+                px-2.5
+                py-1
+                text-[11px]
+                font-bold
+                text-slate-500
+              "
+            >
+              {type}
+            </span>
 
-        </div>
-
-        {/* Rating */}
-
-        <div className="mt-5 flex items-center gap-2">
-
-          <Star
-            size={18}
-            className="fill-yellow-400 text-yellow-400"
-          />
-
-          <span className="font-semibold text-slate-700">
-            4.8
-          </span>
-
-          <span className="text-sm text-slate-400">
-            留学生推荐
-          </span>
-
+            <h3
+              className="
+                mt-2
+                line-clamp-2
+                text-xl
+                font-black
+                leading-snug
+                text-slate-900
+                transition
+                group-hover:text-blue-600
+              "
+            >
+              {name}
+            </h3>
+          </div>
         </div>
 
         {/* Info */}
 
-        <div className="mt-5 space-y-3">
-
-          <div className="flex items-center gap-2 text-slate-500">
-
+        <div className="mt-6 space-y-3">
+          <div
+            className="
+              flex
+              items-center
+              gap-2
+              text-sm
+              text-slate-500
+            "
+          >
             <MapPin
-              size={18}
-              className="text-blue-500"
+              size={16}
+              className="shrink-0 text-blue-500"
             />
 
             {location}
-
           </div>
 
-          <div className="flex items-center gap-2 text-slate-500">
-
+          <div
+            className="
+              flex
+              items-center
+              gap-2
+              text-sm
+              text-slate-500
+            "
+          >
             <CalendarDays
-              size={18}
-              className="text-orange-500"
+              size={16}
+              className="shrink-0 text-orange-500"
             />
 
-            截止：{deadline}
-
+            申请截止：{deadline}
           </div>
-
         </div>
 
         {/* Tags */}
 
-        <div className="mt-6 flex flex-wrap gap-2">
-
-          {tags.map((tag) => (
-
+        <div className="mt-5 flex flex-wrap gap-2">
+          {tags.slice(0, 4).map((tag) => (
             <Tag key={tag}>
               {tag}
             </Tag>
-
           ))}
-
-        </div>
-
-        {/* AI */}
-
-        <div
-          className="
-            mt-6
-            rounded-xl
-            bg-blue-50
-            p-4
-          "
-        >
-
-          <p className="text-xs font-semibold text-blue-600">
-            🤖 AI 推荐
-          </p>
-
-          <p className="mt-2 text-sm text-slate-600">
-            适合留学生申请，
-            外国人支持完善，
-            IT、商科专业热度较高。
-          </p>
-
         </div>
 
         {/* Bottom */}
 
-        <Button
+        <div
           className="
             mt-6
-            w-full
+            flex
+            items-center
+            justify-between
+            border-t
+            border-slate-100
+            pt-5
           "
         >
-          查看学校
+          <span
+            className="
+              text-sm
+              font-bold
+              text-slate-500
+              transition
+              group-hover:text-blue-600
+            "
+          >
+            查看学校详情
+          </span>
 
-          <ArrowRight
-            size={18}
-            className="ml-2"
-          />
-
-        </Button>
-
-      </Card>
-    </Link>
+          <div
+            className="
+              flex
+              h-9
+              w-9
+              items-center
+              justify-center
+              rounded-full
+              bg-slate-100
+              text-slate-500
+              transition
+              group-hover:bg-blue-600
+              group-hover:text-white
+            "
+          >
+            <ArrowRight size={16} />
+          </div>
+        </div>
+      </Link>
+    </Card>
   );
 }

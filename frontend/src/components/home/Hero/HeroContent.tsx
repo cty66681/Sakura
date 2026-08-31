@@ -1,275 +1,239 @@
-import HeroActions from "./HeroActions";
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import {
+  ArrowRight,
+  BadgeCheck,
+  BookOpen,
+  CircleAlert,
+  GraduationCap,
+  Search,
+  Sparkles,
+} from "lucide-react";
+
 import HeroSearch from "./HeroSearch";
 
-const hotKeywords = [
-  "Java",
-  "东京工作",
-  "语言学校",
-  "东京租房",
-  "防骗",
+const quickEntries = [
+  {
+    title: "找学校",
+    description: "大学・语言学校・专门学校",
+    href: "/schools",
+    icon: GraduationCap,
+  },
+  {
+    title: "看经验",
+    description: "在日生活真实经验",
+    href: "/experience",
+    icon: BookOpen,
+  },
+  {
+    title: "查避坑",
+    description: "诈骗・合同・生活风险",
+    href: "/scam",
+    icon: CircleAlert,
+  },
 ];
 
-const trustData = [
+const hotKeywords = [
   {
-    value: "2458+",
-    label: "工作职位",
+    label: "东京语言学校",
+    href: "/schools/language?region=东京",
   },
   {
-    value: "918+",
-    label: "房源信息",
+    label: "IT・AI 专门学校",
+    href: "/schools/college?category=IT・AI",
   },
   {
-    value: "327+",
-    label: "学校资料",
+    label: "日本大学",
+    href: "/schools/university",
+  },
+  {
+    label: "租房避坑",
+    href: "/scam?q=租房",
   },
 ];
 
 export default function HeroContent() {
-  return (
-    <div className="max-w-[760px]">
+  const router = useRouter();
 
+  return (
+    <div className="w-full max-w-[760px]">
       {/* Badge */}
 
-      <div
-        className="
-          inline-flex
-          items-center
-          gap-3
+      <div className="inline-flex items-center gap-2 rounded-full border border-blue-400/20 bg-blue-500/10 px-4 py-2 text-sm font-semibold text-blue-300 backdrop-blur">
+        <Sparkles size={15} />
 
-          rounded-full
+        Sakura 日本生活信息平台
 
-          border
-          border-blue-500/30
+        <span className="h-1 w-1 rounded-full bg-blue-400" />
 
-          bg-blue-500/10
-
-          px-5
-          py-2.5
-
-          text-sm
-          font-semibold
-
-          text-blue-300
-        "
-      >
-        🇯🇵 日本华人生活平台
-
-        <span className="text-blue-500">
-          /
-        </span>
-
-        Sakura Beta
+        Beta
       </div>
 
       {/* Title */}
 
-      <h1
-        className="
-          mt-8
+      <h1 className="mt-7 max-w-[720px] text-[46px] font-black leading-[1.06] tracking-[-0.045em] text-white sm:text-[58px] lg:text-[68px] xl:text-[74px]">
+        在日本生活，
 
-          font-black
-
-          leading-[0.95]
-
-          tracking-tight
-
-          text-[74px]
-
-          md:text-[90px]
-
-          xl:text-[106px]
-        "
-      >
-
-        <span className="text-white">
-
-          在日本，
-
+        <span className="mt-2 block bg-gradient-to-r from-blue-400 via-sky-300 to-emerald-300 bg-clip-text text-transparent">
+          需要的信息一次找到。
         </span>
-
-        <br />
-
-        <span
-          className="
-            bg-gradient-to-r
-
-            from-sky-400
-
-            via-blue-400
-
-            to-violet-400
-
-            bg-clip-text
-
-            text-transparent
-          "
-        >
-          生活，从这里开始。
-        </span>
-
       </h1>
 
       {/* Description */}
 
-      <p
-        className="
-          mt-10
-
-          max-w-[680px]
-
-          text-xl
-
-          leading-10
-
-          text-slate-300
-        "
-      >
-        工作、房源、学校、经验、防骗、AI 助手。
-
-        <br />
-
-        为在日华人打造真正现代化的一站式生活平台。
+      <p className="mt-7 max-w-[650px] text-base leading-8 text-slate-300 sm:text-lg">
+        学校、在日经验、避坑信息、生活资讯、房源和工作。
+        不需要在十几个网站之间来回找，
+        Sakura 帮你把真正有用的信息整理到一起。
       </p>
 
-      {/* Search */}
+      {/* Trust points */}
 
-      <div className="mt-14">
+      <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-400">
+        <TrustPoint>
+          中文信息
+        </TrustPoint>
 
-        <HeroSearch />
+        <TrustPoint>
+          日本本地内容
+        </TrustPoint>
 
+        <TrustPoint>
+          搜索直接到结果
+        </TrustPoint>
+
+        <TrustPoint>
+          AI 辅助查找
+        </TrustPoint>
       </div>
 
-      {/* Hot */}
+      {/* Main Search */}
 
-      <div className="mt-8 flex flex-wrap items-center gap-3">
+      <div className="mt-9">
+        <HeroSearch />
+      </div>
 
-        <span
-          className="
-            text-sm
+      {/* Hot Search */}
 
-            font-semibold
-
-            text-slate-400
-          "
-        >
-          🔥 今日热门
+      <div className="mt-5 flex flex-wrap items-center gap-2">
+        <span className="mr-1 text-xs font-bold text-slate-500">
+          热门：
         </span>
 
         {hotKeywords.map((item) => (
-
           <button
-            key={item}
+            key={item.label}
+            type="button"
+            onClick={() =>
+              router.push(item.href)
+            }
             className="
               rounded-full
-
               border
-
               border-white/10
-
-              bg-white/5
-
-              px-4
-              py-2
-
-              text-sm
-
-              text-slate-300
-
-              transition-all
-              duration-300
-
-              hover:border-blue-500
-
-              hover:bg-blue-500/15
-
-              hover:text-white
+              bg-white/[0.04]
+              px-3.5
+              py-1.5
+              text-xs
+              font-medium
+              text-slate-400
+              transition
+              hover:border-blue-400/30
+              hover:bg-blue-500/10
+              hover:text-blue-200
             "
           >
-            {item}
+            {item.label}
           </button>
-
         ))}
-
       </div>
 
-      {/* Actions */}
+      {/* Quick Entry */}
 
-      <div className="mt-14">
+      <div className="mt-9 grid gap-3 sm:grid-cols-3">
+        {quickEntries.map((item) => {
+          const Icon = item.icon;
 
-        <HeroActions />
+          return (
+            <Link
+              key={item.title}
+              href={item.href}
+              className="
+                group
+                rounded-2xl
+                border
+                border-white/10
+                bg-white/[0.045]
+                p-4
+                backdrop-blur
+                transition
+                duration-300
+                hover:-translate-y-0.5
+                hover:border-blue-400/30
+                hover:bg-white/[0.07]
+              "
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div
+                  className="
+                    flex
+                    h-9
+                    w-9
+                    items-center
+                    justify-center
+                    rounded-xl
+                    bg-white/[0.07]
+                    text-slate-300
+                    transition
+                    group-hover:bg-blue-500/15
+                    group-hover:text-blue-300
+                  "
+                >
+                  <Icon size={17} />
+                </div>
 
+                <ArrowRight
+                  size={15}
+                  className="
+                    mt-1
+                    text-slate-600
+                    transition
+                    group-hover:translate-x-0.5
+                    group-hover:text-blue-400
+                  "
+                />
+              </div>
+
+              <p className="mt-4 text-sm font-black text-white">
+                {item.title}
+              </p>
+
+              <p className="mt-1.5 text-xs leading-5 text-slate-500">
+                {item.description}
+              </p>
+            </Link>
+          );
+        })}
       </div>
+    </div>
+  );
+}
 
-      {/* Divider */}
-
-      <div
-        className="
-          mt-16
-
-          h-px
-
-          w-full
-
-          bg-gradient-to-r
-
-          from-transparent
-
-          via-white/10
-
-          to-transparent
-        "
+function TrustPoint({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <BadgeCheck
+        size={14}
+        className="text-emerald-400"
       />
 
-      {/* Trust */}
-
-      <div
-        className="
-          mt-10
-
-          grid
-
-          grid-cols-3
-
-          gap-10
-        "
-      >
-
-        {trustData.map((item) => (
-
-          <div key={item.label}>
-
-            <h3
-              className="
-                text-5xl
-
-                font-black
-
-                tracking-tight
-
-                text-white
-              "
-            >
-              {item.value}
-            </h3>
-
-            <p
-              className="
-                mt-3
-
-                text-base
-
-                text-slate-400
-              "
-            >
-              {item.label}
-            </p>
-
-          </div>
-
-        ))}
-
-      </div>
-
-    </div>
+      {children}
+    </span>
   );
 }

@@ -6,8 +6,11 @@ import {
   useEffect,
   useMemo,
   useState,
+  type KeyboardEvent,
 } from "react";
+
 import Link from "next/link";
+
 import {
   usePathname,
   useRouter,
@@ -19,8 +22,13 @@ import Container from "@/components/layout/Container";
 interface LanguageSchool {
   id: number;
   name: string;
-  location: string;
-  area: string;
+
+  // =========================================================
+  // 地区数据统一
+  // =========================================================
+  prefecture: string;
+  city: string;
+
   tuition: number;
   tuitionText: string;
   type: string;
@@ -34,12 +42,41 @@ interface LanguageSchool {
   tags: string[];
 }
 
+/*
+|--------------------------------------------------------------------------
+| TODO [API - GET]
+|--------------------------------------------------------------------------
+|
+| GET /api/language-schools
+|
+| Query:
+| q
+| region          // 都道府县，例如：东京 / 爱知 / 大阪
+| sort
+| quick
+| type
+| support
+| page
+|
+| 后端学校地址建议：
+|
+| {
+|   prefecture: "爱知",
+|   city: "名古屋市"
+| }
+|
+| 不再使用：
+| area: "名古屋"
+|
+|--------------------------------------------------------------------------
+*/
+
 const schools: LanguageSchool[] = [
   {
     id: 1,
     name: "东京中央日本语学院",
-    location: "东京 · 新宿",
-    area: "东京",
+    prefecture: "东京",
+    city: "新宿区",
     tuition: 780000,
     tuitionText: "约 ¥780,000 / 年",
     type: "升学型",
@@ -50,13 +87,18 @@ const schools: LanguageSchool[] = [
     universitySupport: true,
     graduateSupport: true,
     visaSupport: true,
-    tags: ["升学指导", "留学生支持", "交通方便"],
+    tags: [
+      "升学指导",
+      "留学生支持",
+      "交通方便",
+    ],
   },
+
   {
     id: 2,
     name: "东京国际日本语学院",
-    location: "东京 · 新宿",
-    area: "东京",
+    prefecture: "东京",
+    city: "新宿区",
     tuition: 820000,
     tuitionText: "约 ¥820,000 / 年",
     type: "升学型",
@@ -67,13 +109,18 @@ const schools: LanguageSchool[] = [
     universitySupport: true,
     graduateSupport: true,
     visaSupport: true,
-    tags: ["大学升学", "大学院升学", "奖学金"],
+    tags: [
+      "大学升学",
+      "大学院升学",
+      "奖学金",
+    ],
   },
+
   {
     id: 3,
     name: "大阪国际日本语学校",
-    location: "大阪 · 大阪市",
-    area: "大阪",
+    prefecture: "大阪",
+    city: "大阪市",
     tuition: 720000,
     tuitionText: "约 ¥720,000 / 年",
     type: "综合型",
@@ -84,13 +131,18 @@ const schools: LanguageSchool[] = [
     universitySupport: true,
     graduateSupport: false,
     visaSupport: true,
-    tags: ["学费较低", "升学指导", "留学生支持"],
+    tags: [
+      "学费较低",
+      "升学指导",
+      "留学生支持",
+    ],
   },
+
   {
     id: 4,
     name: "京都日本语学院",
-    location: "京都 · 京都市",
-    area: "京都",
+    prefecture: "京都",
+    city: "京都市",
     tuition: 760000,
     tuitionText: "约 ¥760,000 / 年",
     type: "升学型",
@@ -101,13 +153,18 @@ const schools: LanguageSchool[] = [
     universitySupport: true,
     graduateSupport: true,
     visaSupport: true,
-    tags: ["大学升学", "京都生活", "国际交流"],
+    tags: [
+      "大学升学",
+      "京都生活",
+      "国际交流",
+    ],
   },
+
   {
     id: 5,
     name: "名古屋国际日本语学校",
-    location: "名古屋 · 中区",
-    area: "名古屋",
+    prefecture: "爱知",
+    city: "名古屋市",
     tuition: 690000,
     tuitionText: "约 ¥690,000 / 年",
     type: "综合型",
@@ -118,13 +175,18 @@ const schools: LanguageSchool[] = [
     universitySupport: true,
     graduateSupport: false,
     visaSupport: true,
-    tags: ["学费较低", "就业支持", "生活成本低"],
+    tags: [
+      "学费较低",
+      "就业支持",
+      "生活成本低",
+    ],
   },
+
   {
     id: 6,
     name: "福冈国际日本语学校",
-    location: "福冈 · 博多",
-    area: "福冈",
+    prefecture: "福冈",
+    city: "福冈市",
     tuition: 650000,
     tuitionText: "约 ¥650,000 / 年",
     type: "综合型",
@@ -135,13 +197,18 @@ const schools: LanguageSchool[] = [
     universitySupport: true,
     graduateSupport: false,
     visaSupport: true,
-    tags: ["生活成本低", "就业支持", "留学生支持"],
+    tags: [
+      "生活成本低",
+      "就业支持",
+      "留学生支持",
+    ],
   },
+
   {
     id: 7,
     name: "北海道日本语教育中心",
-    location: "北海道 · 札幌",
-    area: "北海道",
+    prefecture: "北海道",
+    city: "札幌市",
     tuition: 680000,
     tuitionText: "约 ¥680,000 / 年",
     type: "综合型",
@@ -152,13 +219,18 @@ const schools: LanguageSchool[] = [
     universitySupport: true,
     graduateSupport: false,
     visaSupport: true,
-    tags: ["生活成本低", "留学生支持", "国际交流"],
+    tags: [
+      "生活成本低",
+      "留学生支持",
+      "国际交流",
+    ],
   },
+
   {
     id: 8,
     name: "东京新宿日本语学院",
-    location: "东京 · 新宿",
-    area: "东京",
+    prefecture: "东京",
+    city: "新宿区",
     tuition: 750000,
     tuitionText: "约 ¥750,000 / 年",
     type: "就业型",
@@ -169,18 +241,111 @@ const schools: LanguageSchool[] = [
     universitySupport: false,
     graduateSupport: false,
     visaSupport: true,
-    tags: ["就业指导", "兼职支持", "交通方便"],
+    tags: [
+      "就业指导",
+      "兼职支持",
+      "交通方便",
+    ],
   },
 ];
 
-const regions = [
-  "全部",
-  "东京",
-  "大阪",
-  "京都",
-  "名古屋",
-  "福冈",
-  "北海道",
+/* =========================================================
+   日本 47 都道府县
+========================================================= */
+
+const prefectureGroups = [
+  {
+    region: "北海道",
+    prefectures: ["北海道"],
+  },
+
+  {
+    region: "东北",
+    prefectures: [
+      "青森",
+      "岩手",
+      "宫城",
+      "秋田",
+      "山形",
+      "福岛",
+    ],
+  },
+
+  {
+    region: "关东",
+    prefectures: [
+      "茨城",
+      "栃木",
+      "群马",
+      "埼玉",
+      "千叶",
+      "东京",
+      "神奈川",
+    ],
+  },
+
+  {
+    region: "中部",
+    prefectures: [
+      "新潟",
+      "富山",
+      "石川",
+      "福井",
+      "山梨",
+      "长野",
+      "岐阜",
+      "静冈",
+      "爱知",
+    ],
+  },
+
+  {
+    region: "近畿",
+    prefectures: [
+      "三重",
+      "滋贺",
+      "京都",
+      "大阪",
+      "兵库",
+      "奈良",
+      "和歌山",
+    ],
+  },
+
+  {
+    region: "中国",
+    prefectures: [
+      "鸟取",
+      "岛根",
+      "冈山",
+      "广岛",
+      "山口",
+    ],
+  },
+
+  {
+    region: "四国",
+    prefectures: [
+      "德岛",
+      "香川",
+      "爱媛",
+      "高知",
+    ],
+  },
+
+  {
+    region: "九州・冲绳",
+    prefectures: [
+      "福冈",
+      "佐贺",
+      "长崎",
+      "熊本",
+      "大分",
+      "宫崎",
+      "鹿儿岛",
+      "冲绳",
+    ],
+  },
 ];
 
 const quickFilters = [
@@ -246,15 +411,21 @@ function LanguageSchoolPageContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const keyword = searchParams.get("q") ?? "";
-  const region = searchParams.get("region") ?? "全部";
+  const keyword =
+    searchParams.get("q") ?? "";
+
+  const region =
+    searchParams.get("region") ?? "全部";
+
   const sort =
     searchParams.get("sort") ?? "recommended";
+
   const quickFilter =
     searchParams.get("quick") ?? null;
 
   const selectedTypes = useMemo(() => {
-    const value = searchParams.get("type");
+    const value =
+      searchParams.get("type");
 
     if (!value) {
       return [];
@@ -268,7 +439,8 @@ function LanguageSchoolPageContent() {
   }, [searchParams]);
 
   const selectedSupports = useMemo(() => {
-    const value = searchParams.get("support");
+    const value =
+      searchParams.get("support");
 
     if (!value) {
       return [];
@@ -294,8 +466,10 @@ function LanguageSchoolPageContent() {
       ? Math.floor(rawPage)
       : 1;
 
-  const [searchInput, setSearchInput] =
-    useState(keyword);
+  const [
+    searchInput,
+    setSearchInput,
+  ] = useState(keyword);
 
   const searchParamsString =
     searchParams.toString();
@@ -331,15 +505,17 @@ function LanguageSchoolPageContent() {
             value === "" ||
             value === "全部" ||
             (key === "sort" &&
-              value ===
-                "recommended") ||
+              value === "recommended") ||
             (key === "page" &&
               value === "1");
 
           if (shouldDelete) {
             params.delete(key);
           } else {
-            params.set(key, value);
+            params.set(
+              key,
+              value
+            );
           }
         }
       );
@@ -363,6 +539,10 @@ function LanguageSchoolPageContent() {
     ]
   );
 
+  /* =========================================================
+     搜索
+  ========================================================= */
+
   const handleSearch = () => {
     updateQuery({
       q:
@@ -373,7 +553,7 @@ function LanguageSchoolPageContent() {
   };
 
   const handleSearchKeyDown = (
-    event: React.KeyboardEvent<HTMLInputElement>
+    event: KeyboardEvent<HTMLInputElement>
   ) => {
     if (event.key === "Enter") {
       handleSearch();
@@ -389,6 +569,10 @@ function LanguageSchoolPageContent() {
     });
   };
 
+  /* =========================================================
+     地区
+  ========================================================= */
+
   const changeRegion = (
     value: string
   ) => {
@@ -401,6 +585,10 @@ function LanguageSchoolPageContent() {
     });
   };
 
+  /* =========================================================
+     QUICK FILTER
+  ========================================================= */
+
   const changeQuickFilter = (
     key: string
   ) => {
@@ -412,6 +600,10 @@ function LanguageSchoolPageContent() {
       page: null,
     });
   };
+
+  /* =========================================================
+     TYPE
+  ========================================================= */
 
   const toggleType = (
     type: string
@@ -435,6 +627,10 @@ function LanguageSchoolPageContent() {
       page: null,
     });
   };
+
+  /* =========================================================
+     SUPPORT
+  ========================================================= */
 
   const toggleSupport = (
     key: string
@@ -462,10 +658,17 @@ function LanguageSchoolPageContent() {
   const clearAllFilters = () => {
     setSearchInput("");
 
-    router.replace(pathname, {
-      scroll: false,
-    });
+    router.replace(
+      pathname,
+      {
+        scroll: false,
+      }
+    );
   };
+
+  /* =========================================================
+     FILTER DATA
+  ========================================================= */
 
   const filteredSchools = useMemo(() => {
     let result = [...schools];
@@ -480,8 +683,8 @@ function LanguageSchoolPageContent() {
         (school) =>
           [
             school.name,
-            school.location,
-            school.area,
+            school.prefecture,
+            school.city,
             school.type,
             ...school.tags,
           ]
@@ -493,10 +696,19 @@ function LanguageSchoolPageContent() {
       );
     }
 
+    /*
+     * region 现在严格对应 prefecture。
+     *
+     * 例如：
+     * ?region=东京
+     * ?region=爱知
+     * ?region=北海道
+     */
     if (region !== "全部") {
       result = result.filter(
         (school) =>
-          school.area === region
+          school.prefecture ===
+          region
       );
     }
 
@@ -540,7 +752,8 @@ function LanguageSchoolPageContent() {
               }
 
               if (
-                support === "visa"
+                support ===
+                "visa"
               ) {
                 return school.visaSupport;
               }
@@ -638,6 +851,10 @@ function LanguageSchoolPageContent() {
     sort,
   ]);
 
+  /* =========================================================
+     PAGINATION
+  ========================================================= */
+
   const totalPages = Math.ceil(
     filteredSchools.length /
       PAGE_SIZE
@@ -693,18 +910,19 @@ function LanguageSchoolPageContent() {
           PAGE_SIZE +
         1;
 
-  const endItem = Math.min(
-    currentPage * PAGE_SIZE,
-    filteredSchools.length
-  );
+  const endItem =
+    Math.min(
+      currentPage *
+        PAGE_SIZE,
+      filteredSchools.length
+    );
 
   const changePage = (
     nextPage: number
   ) => {
     if (
       nextPage < 1 ||
-      nextPage >
-        totalPages ||
+      nextPage > totalPages ||
       nextPage === currentPage
     ) {
       return;
@@ -731,7 +949,9 @@ function LanguageSchoolPageContent() {
 
   return (
     <main className="min-h-screen bg-slate-50 pb-24">
-      {/* Hero */}
+      {/* =====================================================
+          HERO
+      ===================================================== */}
 
       <section className="bg-slate-950 text-white">
         <Container>
@@ -769,23 +989,14 @@ function LanguageSchoolPageContent() {
                     }
                     onChange={(e) =>
                       setSearchInput(
-                        e.target
-                          .value
+                        e.target.value
                       )
                     }
                     onKeyDown={
                       handleSearchKeyDown
                     }
-                    placeholder="搜索学校、地区、升学方向..."
-                    className="
-                      w-full
-                      bg-transparent
-                      py-4
-                      pr-4
-                      text-sm
-                      text-slate-900
-                      outline-none
-                    "
+                    placeholder="搜索学校、都道府县、城市、升学方向..."
+                    className="w-full bg-transparent py-4 pr-4 text-sm text-slate-900 outline-none"
                   />
 
                   {searchInput && (
@@ -794,17 +1005,7 @@ function LanguageSchoolPageContent() {
                       onClick={
                         clearSearch
                       }
-                      className="
-                        mr-2
-                        rounded-lg
-                        px-3
-                        py-2
-                        text-sm
-                        text-slate-400
-                        transition
-                        hover:bg-slate-100
-                        hover:text-slate-700
-                      "
+                      className="mr-2 rounded-lg px-3 py-2 text-sm text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
                     >
                       ✕
                     </button>
@@ -816,15 +1017,7 @@ function LanguageSchoolPageContent() {
                   onClick={
                     handleSearch
                   }
-                  className="
-                    bg-emerald-500
-                    px-7
-                    text-sm
-                    font-semibold
-                    text-white
-                    transition
-                    hover:bg-emerald-600
-                  "
+                  className="bg-emerald-500 px-7 text-sm font-semibold text-white transition hover:bg-emerald-600"
                 >
                   搜索
                 </button>
@@ -834,7 +1027,9 @@ function LanguageSchoolPageContent() {
         </Container>
       </section>
 
-      {/* Quick Match */}
+      {/* =====================================================
+          QUICK MATCH
+      ===================================================== */}
 
       <section className="border-b border-slate-200 bg-white">
         <Container>
@@ -894,21 +1089,33 @@ function LanguageSchoolPageContent() {
         </Container>
       </section>
 
-      {/* Main */}
+      {/* =====================================================
+          MAIN
+      ===================================================== */}
 
       <section
         id="language-results"
         className="scroll-mt-24 py-10"
       >
         <Container>
-          <div className="grid gap-8 lg:grid-cols-[240px_1fr]">
-            {/* Sidebar */}
+          <div className="grid gap-8 lg:grid-cols-[260px_1fr]">
+            {/* =================================================
+                SIDEBAR
+            ================================================= */}
 
             <aside className="h-fit rounded-2xl border border-slate-200 bg-white p-6 lg:sticky lg:top-24">
+              {/* 都道府县 */}
+
               <div className="flex items-center justify-between">
-                <h2 className="font-semibold text-slate-900">
-                  地区
-                </h2>
+                <div>
+                  <h2 className="font-semibold text-slate-900">
+                    都道府县
+                  </h2>
+
+                  <p className="mt-1 text-xs text-slate-400">
+                    日本全国 47 都道府县
+                  </p>
+                </div>
 
                 {region !==
                   "全部" && (
@@ -919,47 +1126,77 @@ function LanguageSchoolPageContent() {
                         "全部"
                       )
                     }
-                    className="text-xs text-emerald-600"
+                    className="text-xs font-semibold text-emerald-600"
                   >
                     重置
                   </button>
                 )}
               </div>
 
-              <div className="mt-5 space-y-1">
-                {regions.map(
-                  (item) => (
-                    <button
-                      key={item}
-                      type="button"
-                      onClick={() =>
-                        changeRegion(
-                          item
-                        )
+              <select
+                value={
+                  region
+                }
+                onChange={(e) =>
+                  changeRegion(
+                    e.target.value
+                  )
+                }
+                className="mt-5 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-emerald-400"
+              >
+                <option value="全部">
+                  全国
+                </option>
+
+                {prefectureGroups.map(
+                  (group) => (
+                    <optgroup
+                      key={
+                        group.region
                       }
-                      className={`
-                        w-full
-                        rounded-xl
-                        px-4
-                        py-3
-                        text-left
-                        text-sm
-                        transition
-                        ${
-                          region ===
-                          item
-                            ? "bg-emerald-50 font-semibold text-emerald-600"
-                            : "text-slate-600 hover:bg-slate-50"
-                        }
-                      `}
+                      label={
+                        group.region
+                      }
                     >
-                      {item}
-                    </button>
+                      {group.prefectures.map(
+                        (
+                          prefecture
+                        ) => (
+                          <option
+                            key={
+                              prefecture
+                            }
+                            value={
+                              prefecture
+                            }
+                          >
+                            {
+                              prefecture
+                            }
+                          </option>
+                        )
+                      )}
+                    </optgroup>
                   )
                 )}
-              </div>
+              </select>
+
+              {region !==
+                "全部" && (
+                <div className="mt-3 rounded-xl bg-emerald-50 px-4 py-3">
+                  <p className="text-xs text-emerald-600">
+                    当前地区
+                  </p>
+
+                  <p className="mt-1 text-sm font-bold text-emerald-700">
+                    📍 {region}
+                  </p>
+                </div>
+              )}
 
               <div className="my-6 border-t border-slate-100" />
+
+              {/* 学校方向 */}
 
               <div className="flex items-center justify-between">
                 <h2 className="font-semibold text-slate-900">
@@ -1010,6 +1247,8 @@ function LanguageSchoolPageContent() {
               </div>
 
               <div className="my-6 border-t border-slate-100" />
+
+              {/* 留学生支持 */}
 
               <div className="flex items-center justify-between">
                 <h2 className="font-semibold text-slate-900">
@@ -1071,33 +1310,24 @@ function LanguageSchoolPageContent() {
                 onClick={
                   clearAllFilters
                 }
-                className="
-                  w-full
-                  rounded-xl
-                  border
-                  border-slate-200
-                  bg-white
-                  px-4
-                  py-3
-                  text-sm
-                  font-semibold
-                  text-slate-600
-                  transition
-                  hover:border-emerald-300
-                  hover:text-emerald-600
-                "
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 transition hover:border-emerald-300 hover:text-emerald-600"
               >
                 清除全部筛选
               </button>
             </aside>
 
-            {/* Results */}
+            {/* =================================================
+                RESULTS
+            ================================================= */}
 
             <div className="flex min-h-[1050px] flex-col">
               <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <h2 className="text-2xl font-bold text-slate-900">
-                    日本语言学校
+                    {region ===
+                    "全部"
+                      ? "日本语言学校"
+                      : `${region}语言学校`}
                   </h2>
 
                   <p className="mt-2 text-sm text-slate-500">
@@ -1134,18 +1364,7 @@ function LanguageSchoolPageContent() {
                       page: null,
                     })
                   }
-                  className="
-                    rounded-xl
-                    border
-                    border-slate-200
-                    bg-white
-                    px-4
-                    py-3
-                    text-sm
-                    text-slate-600
-                    outline-none
-                    focus:border-emerald-400
-                  "
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 outline-none focus:border-emerald-400"
                 >
                   <option value="recommended">
                     推荐排序
@@ -1178,19 +1397,7 @@ function LanguageSchoolPageContent() {
                             school.id
                           }
                           href={`/schools/language/${school.id}`}
-                          className="
-                            group
-                            block
-                            rounded-2xl
-                            border
-                            border-slate-200
-                            bg-white
-                            p-6
-                            transition
-                            hover:-translate-y-1
-                            hover:border-emerald-200
-                            hover:shadow-xl
-                          "
+                          className="group block rounded-2xl border border-slate-200 bg-white p-6 transition hover:-translate-y-1 hover:border-emerald-200 hover:shadow-xl"
                         >
                           <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
                             <div className="min-w-0">
@@ -1211,7 +1418,11 @@ function LanguageSchoolPageContent() {
                               <p className="mt-3 text-sm text-slate-500">
                                 📍{" "}
                                 {
-                                  school.location
+                                  school.prefecture
+                                }{" "}
+                                ·{" "}
+                                {
+                                  school.city
                                 }
                               </p>
 
@@ -1231,14 +1442,7 @@ function LanguageSchoolPageContent() {
                                       key={
                                         tag
                                       }
-                                      className="
-                                        rounded-lg
-                                        bg-slate-100
-                                        px-3
-                                        py-1.5
-                                        text-xs
-                                        text-slate-600
-                                      "
+                                      className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs text-slate-600"
                                     >
                                       {
                                         tag
@@ -1248,8 +1452,6 @@ function LanguageSchoolPageContent() {
                                 )}
                               </div>
                             </div>
-
-                            {/* Score */}
 
                             <div className="shrink-0 md:text-right">
                               <div className="text-xl font-bold text-amber-500">
@@ -1319,21 +1521,7 @@ function LanguageSchoolPageContent() {
                               1
                           )
                         }
-                        className="
-                          rounded-xl
-                          border
-                          border-slate-200
-                          bg-white
-                          px-4
-                          py-2.5
-                          text-sm
-                          text-slate-600
-                          transition
-                          hover:border-emerald-300
-                          hover:text-emerald-600
-                          disabled:cursor-not-allowed
-                          disabled:opacity-40
-                        "
+                        className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-600 transition hover:border-emerald-300 hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         ← 上一页
                       </button>
@@ -1394,21 +1582,7 @@ function LanguageSchoolPageContent() {
                               1
                           )
                         }
-                        className="
-                          rounded-xl
-                          border
-                          border-slate-200
-                          bg-white
-                          px-4
-                          py-2.5
-                          text-sm
-                          text-slate-600
-                          transition
-                          hover:border-emerald-300
-                          hover:text-emerald-600
-                          disabled:cursor-not-allowed
-                          disabled:opacity-40
-                        "
+                        className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-600 transition hover:border-emerald-300 hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         下一页 →
                       </button>
@@ -1422,11 +1596,14 @@ function LanguageSchoolPageContent() {
                   </div>
 
                   <h3 className="mt-4 font-semibold text-slate-900">
-                    没有找到符合条件的学校
+                    暂时没有找到符合条件的语言学校
                   </h3>
 
-                  <p className="mt-2 text-sm text-slate-500">
-                    可以尝试更换地区、筛选条件或搜索关键词。
+                  <p className="mt-2 text-sm leading-7 text-slate-500">
+                    当前 Mock 数据还没有覆盖日本全部地区。
+                    <br />
+                    地区筛选结构已经支持全国 47 都道府县，
+                    后续接入真实学校数据库后会自动显示对应学校。
                   </p>
 
                   <button
@@ -1454,11 +1631,12 @@ function LanguageSchoolLoading() {
       <div className="h-[360px] animate-pulse bg-slate-950" />
 
       <Container>
-        <div className="grid gap-8 px-4 py-10 lg:grid-cols-[240px_1fr]">
+        <div className="grid gap-8 px-4 py-10 lg:grid-cols-[260px_1fr]">
           <div className="h-[650px] animate-pulse rounded-2xl bg-white" />
 
           <div className="space-y-5">
             <div className="h-[230px] animate-pulse rounded-2xl bg-white" />
+
             <div className="h-[230px] animate-pulse rounded-2xl bg-white" />
           </div>
         </div>
