@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import type { ReactNode } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -41,7 +42,7 @@ interface PublishOption {
 | /houses/new
 | /jobs/new
 | /experience/new
-| /scam/new
+| /scam/report
 |
 | 真正的 POST API 会放在各自的发布表单中：
 |
@@ -96,7 +97,7 @@ const publishOptions: PublishOption[] = [
     description: "提交消费纠纷、风险事件以及相关证据资料。",
     detail:
       "避坑内容不会直接公开，需要经过事实描述和证据资料审核。",
-    href: "/scam/new",
+    href: "/scam/report",
     iconClass: "bg-rose-50 text-rose-600",
     borderClass: "border-rose-100",
     hoverClass:
@@ -785,7 +786,7 @@ function PublishCard({
 function RuleItem({
   children,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div className="flex items-start gap-3">

@@ -162,10 +162,16 @@ export default function NewExperiencePage() {
   }
 
   function addTag() {
-    const value =
-      tagInput.trim();
+    const value = tagInput
+      .trim()
+      .replace(/^#+/, "");
 
     if (!value) {
+      return;
+    }
+
+    if (value.length > 20) {
+      setError("单个标签不能超过 20 个字符。");
       return;
     }
 
@@ -175,9 +181,7 @@ export default function NewExperiencePage() {
     }
 
     if (tags.length >= 5) {
-      setError(
-        "最多可以添加 5 个标签。"
-      );
+      setError("最多可以添加 5 个标签。");
       return;
     }
 
@@ -188,6 +192,7 @@ export default function NewExperiencePage() {
 
     setTagInput("");
     setError("");
+    setNotice("");
   }
 
   function removeTag(
@@ -201,38 +206,71 @@ export default function NewExperiencePage() {
   }
 
   function validateForSubmit() {
-    if (!form.title.trim()) {
+    const title = form.title.trim();
+    const summary = form.summary.trim();
+    const content = form.content.trim();
+    const authorName = form.authorName.trim();
+
+    if (!title) {
       return "请输入经验标题。";
+    }
+
+    if (title.length > 80) {
+      return "经验标题不能超过 80 个字符。";
     }
 
     if (!form.category) {
       return "请选择经验分类。";
     }
 
-    if (!form.summary.trim()) {
+    if (!categories.includes(form.category)) {
+      return "经验分类不正确。";
+    }
+
+    if (!prefectures.includes(form.prefecture)) {
+      return "相关地区不正确。";
+    }
+
+    if (!summary) {
       return "请输入经验摘要。";
     }
 
-    if (
-      form.summary.trim().length >
-      160
-    ) {
-      return "经验摘要请控制在 160 字以内。";
+    if (summary.length > 300) {
+      return "经验摘要请控制在 300 字以内。";
     }
 
-    if (!form.content.trim()) {
+    if (!content) {
       return "请输入经验正文。";
     }
 
-    if (
-      form.content.trim().length <
-      50
-    ) {
+    if (content.length < 50) {
       return "经验正文至少填写 50 字。";
     }
 
-    if (!form.authorName.trim()) {
+    if (content.length > 5000) {
+      return "经验正文不能超过 5000 字。";
+    }
+
+    if (tags.length > 5) {
+      return "最多可以添加 5 个标签。";
+    }
+
+    if (
+      tags.some(
+        (tag) =>
+          !tag.trim() ||
+          tag.trim().length > 20
+      )
+    ) {
+      return "单个标签不能超过 20 个字符。";
+    }
+
+    if (!authorName) {
       return "请输入显示名称。";
+    }
+
+    if (authorName.length > 50) {
+      return "显示名称不能超过 50 个字符。";
     }
 
     return "";
@@ -666,7 +704,7 @@ export default function NewExperiencePage() {
                       )
                     }
                     rows={4}
-                    maxLength={160}
+                    maxLength={300}
                     placeholder="用两三句话告诉读者，这篇文章能帮他解决什么问题。"
                     className={`${inputClass} resize-none leading-7`}
                   />
@@ -675,7 +713,7 @@ export default function NewExperiencePage() {
                     current={
                       form.summary.length
                     }
-                    max={160}
+                    max={300}
                   />
                 </Field>
               </FormSection>
@@ -693,9 +731,7 @@ export default function NewExperiencePage() {
                   full
                 >
                   <textarea
-                    value={
-                      form.content
-                    }
+                    value={form.content}
                     onChange={(event) =>
                       updateField(
                         "content",
@@ -703,19 +739,20 @@ export default function NewExperiencePage() {
                       )
                     }
                     rows={18}
+                    maxLength={5000}
                     placeholder={`可以参考这样的结构：
 
-【事情背景】
-我当时是什么情况，为什么会遇到这个问题。
+                  【事情背景】
+                  我当时是什么情况，为什么会遇到这个问题。
 
-【实际过程】
-我做了什么，遇到了哪些问题。
+                  【实际过程】
+                  我做了什么，遇到了哪些问题。
 
-【后来怎么解决】
-最终用了什么方法。
+                  【后来怎么解决】
+                  最终用了什么方法。
 
-【给后来人的建议】
-如果你也遇到同样情况，可以提前注意什么。`}
+                  【给后来人的建议】
+                  如果你也遇到同样情况，可以提前注意什么。`}
                     className={`${inputClass} min-h-[420px] resize-y leading-8`}
                   />
 
@@ -731,15 +768,14 @@ export default function NewExperiencePage() {
                     "
                   >
                     <span>
-                      最少建议 50 字
+                      最少 50 字
                     </span>
 
                     <span>
                       {
                         form.content
                           .length
-                      }{" "}
-                      字
+                      } / 5000
                     </span>
                   </div>
                 </Field>
@@ -892,7 +928,7 @@ export default function NewExperiencePage() {
                         )
                       }
                       placeholder="例如：东京生活第6年"
-                      maxLength={30}
+                      maxLength={50}
                       className={`${inputClass} pl-11`}
                     />
                   </div>

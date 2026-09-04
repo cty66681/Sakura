@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 
 import Container from "@/components/layout/Container";
+import CommentSection from "@/components/comments/CommentSection";
 
 interface ExperienceDetail {
   id: number;
@@ -436,7 +437,17 @@ export default function ExperienceDetailPage() {
     );
 
   const [favorite, setFavorite] =
-    useState(false);
+    useState(() => {
+      if (
+        !Number.isFinite(experienceId)
+      ) {
+        return false;
+      }
+
+      return readFavoriteIds().includes(
+        experienceId
+      );
+    });
 
   const [copied, setCopied] =
     useState(false);
@@ -508,25 +519,6 @@ export default function ExperienceDetailPage() {
       active = false;
     };
   }, [experienceId, params.id]);
-
-  useEffect(() => {
-    if (
-      !Number.isFinite(
-        experienceId
-      )
-    ) {
-      return;
-    }
-
-    const favorites =
-      readFavoriteIds();
-
-    setFavorite(
-      favorites.includes(
-        experienceId
-      )
-    );
-  }, [experienceId]);
 
   useEffect(() => {
     function handleFavoriteChange() {
@@ -1414,6 +1406,23 @@ export default function ExperienceDetailPage() {
                   )}
                 </div>
               </div>
+              {/* COMMENTS */}
+              <div
+                id="comments"
+                className="
+                  border-t
+                  border-slate-100
+                  px-5
+                  pb-8
+                  sm:px-8
+                  sm:pb-10
+                "
+              >
+                <CommentSection
+                  contentType="experience"
+                  contentId={experience.id}
+                />
+              </div>
             </article>
 
             {/* SIDEBAR */}
@@ -1714,8 +1723,7 @@ export default function ExperienceDetailPage() {
                 </Link>
               </div>
 
-              {/* REPORT */}
-
+              {/* DISCUSSION */}
               <div
                 className="
                   rounded-[22px]
@@ -1732,37 +1740,67 @@ export default function ExperienceDetailPage() {
                     gap-3
                   "
                 >
-                  <MessageCircle
-                    size={17}
+                  <div
                     className="
-                      mt-0.5
+                      flex
+                      h-10
+                      w-10
                       shrink-0
-                      text-slate-400
+                      items-center
+                      justify-center
+                      rounded-xl
+                      bg-emerald-50
+                      text-emerald-700
                     "
-                  />
+                  >
+                    <MessageCircle size={17} />
+                  </div>
 
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <p
                       className="
-                        text-xs
+                        text-sm
                         font-black
-                        text-slate-700
+                        text-slate-900
                       "
                     >
-                      发现内容有问题？
+                      参与讨论
                     </p>
 
                     <p
                       className="
                         mt-1.5
-                        text-[11px]
+                        text-xs
                         leading-5
-                        text-slate-400
+                        text-slate-500
                       "
                     >
-                      后续接入举报和内容纠错系统后，
-                      用户可以提交错误信息、隐私问题或违规内容。
+                      有补充、不同经历或者想问作者的问题，
+                      可以在评论区继续交流。
                     </p>
+
+                    <a
+                      href="#comments"
+                      className="
+                        mt-4
+                        inline-flex
+                        min-h-10
+                        items-center
+                        gap-2
+                        rounded-xl
+                        bg-slate-950
+                        px-4
+                        text-xs
+                        font-black
+                        text-white
+                        transition
+                        hover:bg-slate-800
+                      "
+                    >
+                      <MessageCircle size={14} />
+                      查看评论
+                      <ArrowRight size={13} />
+                    </a>
                   </div>
                 </div>
               </div>

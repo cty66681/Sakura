@@ -103,8 +103,38 @@ interface EvidenceItem {
 }
 
 const MAX_FILES = 10;
-const MAX_FILE_SIZE =
-  10 * 1024 * 1024;
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const MAX_TITLE_LENGTH = 80;
+const MAX_SUMMARY_LENGTH = 300;
+const MAX_DETAILS_LENGTH = 5000;
+const MAX_DISPLAY_NAME_LENGTH = 50;
+const MAX_BUSINESS_NAME_LENGTH = 100;
+const MAX_INDIVIDUAL_NAME_LENGTH = 50;
+const MAX_EMAIL_LENGTH = 254;
+const MAX_PHONE_LENGTH = 11;
+
+const allowedEvidenceMimeTypes = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+  "application/pdf",
+];
+
+function getTodayDateString() {
+  const now = new Date();
+
+  const year = now.getFullYear();
+  const month = String(
+    now.getMonth() + 1
+  ).padStart(2, "0");
+  const day = String(
+    now.getDate()
+  ).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
 
 const reportTypes: {
   value: ReportType;
@@ -303,16 +333,13 @@ export default function ScamReportPage() {
   const isHighRisk =
     selectedType.risk === "high";
 
-  const canSubmit =
-    form.title.trim().length >=
-      8 &&
-    form.summary.trim().length >=
-      30 &&
-    form.details.trim().length >=
-      80 &&
-    form.confirmsTruth &&
-    form.confirmsPrivacy &&
-    form.confirmsReview;
+ const canSubmit =
+  form.title.trim().length >= 8 &&
+  form.summary.trim().length >= 30 &&
+  form.details.trim().length >= 80 &&
+  form.confirmsTruth &&
+  form.confirmsPrivacy &&
+  form.confirmsReview;
 
 
 
@@ -356,6 +383,20 @@ export default function ScamReportPage() {
 
     const accepted =
       files.slice(0, available);
+
+    const unsupported = accepted.find(
+      (file) =>
+        !allowedEvidenceMimeTypes.includes(
+          file.type
+        )
+    );
+
+    if (unsupported) {
+      setError(
+        `不支持该文件类型：${unsupported.name}。请上传 JPG、PNG、WebP、HEIC 或 PDF。`
+      );
+      return;
+    }
 
     const oversized =
       accepted.find(
@@ -460,6 +501,248 @@ export default function ScamReportPage() {
     );
   }
 
+  function validateForSubmit() {
+    const title = form.title.trim();
+    const summary = form.summary.trim();
+    const details = form.details.trim();
+    const subjectName =
+      form.subjectName.trim();
+    const displayName =
+      form.displayName.trim();
+    const email =
+      form.contactEmail.trim();
+    const phone =
+      form.contactPhone.trim();
+
+    const validReportTypes =
+      reportTypes.map(
+        (item) => item.value
+      );
+
+    if (
+      !validReportTypes.includes(
+        form.reportType
+      )
+    ) {
+      return "请选择有效的风险类型。";
+    }
+
+    if (!title) {
+      return "请输入报告标题。";
+    }
+
+    if (title.length < 8) {
+      return "报告标题至少填写 8 个字符。";
+    }
+
+    if (
+      title.length >
+      MAX_TITLE_LENGTH
+    ) {
+      return `报告标题不能超过 ${MAX_TITLE_LENGTH} 个字符。`;
+    }
+
+    if (
+      !prefectures.includes(
+        form.prefecture
+      )
+    ) {
+      return "请选择有效的发生地区。";
+    }
+
+    if (form.incidentDate) {
+      const incidentDate =
+        new Date(
+          `${form.incidentDate}T00:00:00`
+        );
+
+      if (
+        Number.isNaN(
+          incidentDate.getTime()
+        )
+      ) {
+        return "发生日期格式不正确。";
+      }
+
+      if (
+        form.incidentDate >
+        getTodayDateString()
+      ) {
+        return "发生日期不能晚于今天。";
+      }
+    }
+
+    if (
+      ![
+        "unknown",
+        "individual",
+        "business",
+      ].includes(form.subjectType)
+    ) {
+      return "涉及对象类型不正确。";
+    }
+
+    if (
+      form.subjectType ===
+        "individual" &&
+      subjectName.length >
+        MAX_INDIVIDUAL_NAME_LENGTH
+    ) {
+      return `对方公开名称不能超过 ${MAX_INDIVIDUAL_NAME_LENGTH} 个字符。`;
+    }
+
+    if (
+      form.subjectType ===
+        "business" &&
+      subjectName.length >
+        MAX_BUSINESS_NAME_LENGTH
+    ) {
+      return `企业或店铺名称不能超过 ${MAX_BUSINESS_NAME_LENGTH} 个字符。`;
+    }
+
+    if (!summary) {
+      return "请输入简要说明。";
+    }
+
+    if (summary.length < 30) {
+      return "简要说明至少填写 30 个字符。";
+    }
+
+    if (
+      summary.length >
+      MAX_SUMMARY_LENGTH
+    ) {
+      return `简要说明不能超过 ${MAX_SUMMARY_LENGTH} 个字符。`;
+    }
+
+    if (!details) {
+      return "请输入详细经过。";
+    }
+
+    if (details.length < 80) {
+      return "详细经过至少填写 80 个字符。";
+    }
+
+    if (
+      details.length >
+      MAX_DETAILS_LENGTH
+    ) {
+      return `详细经过不能超过 ${MAX_DETAILS_LENGTH} 个字符。`;
+    }
+
+    if (evidence.length > MAX_FILES) {
+      return `最多上传 ${MAX_FILES} 个证据文件。`;
+    }
+
+    if (
+      evidence.some(
+        (item) =>
+          item.file.size >
+          MAX_FILE_SIZE
+      )
+    ) {
+      return "单个证据文件不能超过 10MB。";
+    }
+
+    if (
+      evidence.some(
+        (item) =>
+          !allowedEvidenceMimeTypes.includes(
+            item.file.type
+          )
+      )
+    ) {
+      return "证据文件仅支持 JPG、PNG、WebP、HEIC 和 PDF。";
+    }
+
+    if (
+      evidence.some(
+        (item) =>
+          !evidenceTypes.some(
+            (type) =>
+              type.value ===
+              item.type
+          )
+      )
+    ) {
+      return "证据材料类型不正确。";
+    }
+
+    if (
+      evidence.some(
+        (item) =>
+          item.visibility !==
+            "admin_only" &&
+          item.visibility !==
+            "public_redacted"
+      )
+    ) {
+      return "证据公开权限不正确。";
+    }
+
+    if (
+      form.publicIdentity !==
+        "anonymous" &&
+      form.publicIdentity !==
+        "nickname"
+    ) {
+      return "公开身份设置不正确。";
+    }
+
+    if (
+      form.publicIdentity ===
+      "nickname"
+    ) {
+      if (!displayName) {
+        return "请输入公开昵称。";
+      }
+
+      if (
+        displayName.length >
+        MAX_DISPLAY_NAME_LENGTH
+      ) {
+        return `公开昵称不能超过 ${MAX_DISPLAY_NAME_LENGTH} 个字符。`;
+      }
+    }
+
+    if (
+      email.length >
+      MAX_EMAIL_LENGTH
+    ) {
+      return `联系邮箱不能超过 ${MAX_EMAIL_LENGTH} 个字符。`;
+    }
+
+    if (
+      email &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+        email
+      )
+    ) {
+      return "请输入正确的邮箱地址。";
+    }
+
+    if (
+      phone &&
+      !/^0\d{9,10}$/.test(phone)
+    ) {
+      return "联系电话请输入日本常用的 10～11 位数字号码。";
+    }
+
+    if (!form.confirmsTruth) {
+      return "请确认提交内容基于你实际知道、看到或经历的信息。";
+    }
+
+    if (!form.confirmsPrivacy) {
+      return "请确认不会故意公开与事件无关的敏感个人信息。";
+    }
+
+    if (!form.confirmsReview) {
+      return "请确认并理解 Sakura 的审核规则。";
+    }
+
+    return "";
+  }
+
   async function saveDraft() {
     setStatus("saving");
     setError("");
@@ -493,10 +776,17 @@ export default function ScamReportPage() {
   ) {
     event.preventDefault();
 
-    if (!canSubmit) {
-      setError(
-        "请完成必要内容并确认提交规则。"
-      );
+    const validationError =
+      validateForSubmit();
+
+    if (validationError) {
+      setError(validationError);
+
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+
       return;
     }
 
@@ -893,26 +1183,19 @@ export default function ScamReportPage() {
                     <Field
                       label="标题"
                       required
-                      hint={`${form.title.length}/80`}
+                      hint={`${form.title.length}/${MAX_TITLE_LENGTH}`}
                     >
                       <input
-                        value={
-                          form.title
-                        }
-                        maxLength={80}
-                        onChange={(
-                          event
-                        ) =>
+                        value={form.title}
+                        maxLength={MAX_TITLE_LENGTH}
+                        onChange={(event) =>
                           updateForm(
                             "title",
-                            event.target
-                              .value
+                            event.target.value
                           )
                         }
                         placeholder="例如：求职时被要求先垫付大额费用"
-                        className={
-                          inputClass
-                        }
+                        className={inputClass}
                       />
                     </Field>
 
@@ -967,21 +1250,15 @@ export default function ScamReportPage() {
                       <Field label="发生日期">
                         <input
                           type="date"
-                          value={
-                            form.incidentDate
-                          }
-                          onChange={(
-                            event
-                          ) =>
+                          value={form.incidentDate}
+                          max={getTodayDateString()}
+                          onChange={(event) =>
                             updateForm(
                               "incidentDate",
-                              event.target
-                                .value
+                              event.target.value
                             )
                           }
-                          className={
-                            inputClass
-                          }
+                          className={inputClass}
                         />
                       </Field>
                     </div>
@@ -1056,27 +1333,24 @@ export default function ScamReportPage() {
                         hint="请填写你实际看到或交易时使用的名称"
                       >
                         <input
-                          value={
-                            form.subjectName
+                          value={form.subjectName}
+                          maxLength={
+                            form.subjectType === "business"
+                              ? MAX_BUSINESS_NAME_LENGTH
+                              : MAX_INDIVIDUAL_NAME_LENGTH
                           }
-                          onChange={(
-                            event
-                          ) =>
+                          onChange={(event) =>
                             updateForm(
                               "subjectName",
-                              event.target
-                                .value
+                              event.target.value
                             )
                           }
                           placeholder={
-                            form.subjectType ===
-                            "business"
+                            form.subjectType === "business"
                               ? "例如：合同或店铺页面上的正式名称"
                               : "例如：对方公开使用的账号名称"
                           }
-                          className={
-                            inputClass
-                          }
+                          className={inputClass}
                         />
                       </Field>
                     )}
@@ -1094,59 +1368,46 @@ export default function ScamReportPage() {
                     <Field
                       label="简要说明"
                       required
-                      hint={`${form.summary.length}/200`}
+                      hint={`${form.summary.length}/${MAX_SUMMARY_LENGTH}`}
                     >
                       <textarea
-                        value={
-                          form.summary
-                        }
-                        maxLength={200}
+                        value={form.summary}
+                        maxLength={MAX_SUMMARY_LENGTH}
                         rows={4}
-                        onChange={(
-                          event
-                        ) =>
+                        onChange={(event) =>
                           updateForm(
                             "summary",
-                            event.target
-                              .value
+                            event.target.value
                           )
                         }
                         placeholder="用几句话说明事情的核心经过。"
-                        className={
-                          textareaClass
-                        }
+                        className={textareaClass}
                       />
                     </Field>
 
                     <Field
                       label="详细经过"
                       required
-                      hint={`${form.details.length} 字`}
+                      hint={`${form.details.length} / ${MAX_DETAILS_LENGTH}`}
                     >
                       <textarea
-                        value={
-                          form.details
-                        }
+                        value={form.details}
                         rows={12}
-                        onChange={(
-                          event
-                        ) =>
+                        maxLength={MAX_DETAILS_LENGTH}
+                        onChange={(event) =>
                           updateForm(
                             "details",
-                            event.target
-                              .value
+                            event.target.value
                           )
                         }
                         placeholder={`建议按照时间顺序填写：
 
-1. 你在哪里看到或接触到这条信息？
-2. 对方具体说了什么？
-3. 是否发生付款、签约、取货或其他行为？
-4. 之后发生了什么？
-5. 目前事情处于什么状态？`}
-                        className={
-                          textareaClass
-                        }
+                          1. 你在哪里看到或接触到这条信息？
+                          2. 对方具体说了什么？
+                          3. 是否发生付款、签约、取货或其他行为？
+                          4. 之后发生了什么？
+                          5. 目前事情处于什么状态？`}
+                        className={textareaClass}
                       />
                     </Field>
 
@@ -1224,10 +1485,9 @@ export default function ScamReportPage() {
                     <input
                       type="file"
                       multiple
+                      accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf"
                       className="hidden"
-                      onChange={
-                        handleFiles
-                      }
+                      onChange={handleFiles}
                     />
                   </label>
 
@@ -1368,7 +1628,7 @@ export default function ScamReportPage() {
                           value={
                             form.displayName
                           }
-                          maxLength={30}
+                          maxLength={MAX_DISPLAY_NAME_LENGTH}
                           onChange={(
                             event
                           ) =>
@@ -1405,29 +1665,24 @@ export default function ScamReportPage() {
                     <Field label="联系邮箱">
                       <input
                         type="email"
-                        value={
-                          form.contactEmail
-                        }
-                        onChange={(
-                          event
-                        ) =>
+                        maxLength={MAX_EMAIL_LENGTH}
+                        value={form.contactEmail}
+                        onChange={(event) =>
                           updateForm(
                             "contactEmail",
-                            event.target
-                              .value
+                            event.target.value
                           )
                         }
                         placeholder="仅审核使用"
-                        className={
-                          inputClass
-                        }
+                        autoComplete="email"
+                        className={inputClass}
                       />
                     </Field>
 
                     <Field label="联系电话">
                       <input
                         type="tel"
-                        inputMode="tel"
+                        inputMode="numeric"
                         value={
                           form.contactPhone
                         }

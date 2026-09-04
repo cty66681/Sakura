@@ -330,6 +330,14 @@ export default function ScamEditPage() {
     );
   }, [form]);
 
+  const now = new Date();
+
+  const today = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+  ].join("-");
+
   useEffect(() => {
     let active = true;
 
@@ -593,6 +601,224 @@ export default function ScamEditPage() {
     );
   }
 
+  function validateForSubmit() {
+    if (!form) {
+      return "报告数据尚未加载完成。";
+    }
+
+    const title =
+      form.title.trim();
+
+    const subjectName =
+      form.subjectName.trim();
+
+    const summary =
+      form.summary.trim();
+
+    const details =
+      form.details.trim();
+
+    const displayName =
+      form.displayName.trim();
+
+    const email =
+      form.contactEmail.trim();
+
+    const phone =
+      form.contactPhone.trim();
+
+    if (
+      !reportTypes.some(
+        (item) =>
+          item.value ===
+          form.reportType
+      )
+    ) {
+      return "请选择有效的风险类型。";
+    }
+
+    if (
+      title.length < 8 ||
+      title.length > 80
+    ) {
+      return "标题请输入 8～80 个字符。";
+    }
+
+    if (
+      !prefectures.includes(
+        form.prefecture
+      )
+    ) {
+      return "请选择有效的地区。";
+    }
+
+    if (!form.incidentDate) {
+      return "请选择事件发生日期。";
+    }
+
+    const incidentTime =
+      new Date(
+        `${form.incidentDate}T00:00:00`
+      ).getTime();
+
+    if (
+      !Number.isFinite(
+        incidentTime
+      )
+    ) {
+      return "请输入有效的事件发生日期。";
+    }
+
+    const today =
+      new Date();
+
+    today.setHours(
+      23,
+      59,
+      59,
+      999
+    );
+
+    if (
+      incidentTime >
+      today.getTime()
+    ) {
+      return "事件发生日期不能晚于今天。";
+    }
+
+    if (
+      ![
+        "unknown",
+        "individual",
+        "business",
+      ].includes(
+        form.subjectType
+      )
+    ) {
+      return "请选择有效的涉及对象类型。";
+    }
+
+    if (
+      form.subjectType !==
+        "unknown" &&
+      !subjectName
+    ) {
+      return "请填写涉及对象的名称。";
+    }
+
+    if (
+      subjectName.length > 100
+    ) {
+      return "涉及对象名称不能超过 100 个字符。";
+    }
+
+    if (
+      summary.length < 30 ||
+      summary.length > 300
+    ) {
+      return "简要说明请输入 30～300 个字符。";
+    }
+
+    if (
+      details.length < 80 ||
+      details.length > 5000
+    ) {
+      return "详细经过请输入 80～5000 个字符。";
+    }
+
+    if (
+      ![
+        "anonymous",
+        "nickname",
+      ].includes(
+        form.publicIdentity
+      )
+    ) {
+      return "请选择有效的公开身份方式。";
+    }
+
+    if (
+      form.publicIdentity ===
+        "nickname" &&
+      !displayName
+    ) {
+      return "请输入公开昵称。";
+    }
+
+    if (
+      displayName.length > 50
+    ) {
+      return "公开昵称不能超过 50 个字符。";
+    }
+
+    if (
+      email.length > 254
+    ) {
+      return "邮箱地址不能超过 254 个字符。";
+    }
+
+    if (
+      email &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+        email
+      )
+    ) {
+      return "请输入有效的邮箱地址。";
+    }
+
+    if (
+      phone &&
+      !/^0\d{9,10}$/.test(
+        phone
+      )
+    ) {
+      return "联系电话请输入日本常用的 10～11 位号码。";
+    }
+
+    if (
+      evidence.length >
+      MAX_FILES
+    ) {
+      return `证据文件最多 ${MAX_FILES} 个。`;
+    }
+
+    for (const item of evidence) {
+      if (
+        !evidenceTypes.some(
+          (type) =>
+            type.value ===
+            item.type
+        )
+      ) {
+        return "存在无效的证据类型。";
+      }
+
+      if (
+        ![
+          "admin_only",
+          "public_redacted",
+        ].includes(
+          item.visibility
+        )
+      ) {
+        return "存在无效的证据公开权限。";
+      }
+
+      if (
+        item.kind === "local"
+      ) {
+        if (
+          item.file.size >
+          MAX_FILE_SIZE
+        ) {
+          return `单个证据文件不能超过 10MB：${item.file.name}`;
+        }
+      }
+    }
+
+    return "";
+  }
+
   async function saveDraft() {
     if (!form) {
       return;
@@ -651,10 +877,11 @@ export default function ScamEditPage() {
       return;
     }
 
-    if (!canSubmit) {
-      setError(
-        "请补充必要内容后再提交审核。"
-      );
+    const validationError =
+      validateForSubmit();
+
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
@@ -1073,21 +1300,15 @@ export default function ScamEditPage() {
                       <Field label="发生日期">
                         <input
                           type="date"
-                          value={
-                            form.incidentDate
-                          }
-                          onChange={(
-                            event
-                          ) =>
+                          value={form.incidentDate}
+                          max={today}
+                          onChange={(event) =>
                             updateForm(
                               "incidentDate",
-                              event.target
-                                .value
+                              event.target.value
                             )
                           }
-                          className={
-                            inputClass
-                          }
+                          className={inputClass}
                         />
                       </Field>
                     </div>
@@ -1158,21 +1379,15 @@ export default function ScamEditPage() {
                         }
                       >
                         <input
-                          value={
-                            form.subjectName
-                          }
-                          onChange={(
-                            event
-                          ) =>
+                          value={form.subjectName}
+                          maxLength={100}
+                          onChange={(event) =>
                             updateForm(
                               "subjectName",
-                              event.target
-                                .value
+                              event.target.value
                             )
                           }
-                          className={
-                            inputClass
-                          }
+                          className={inputClass}
                         />
                       </Field>
                     )}
@@ -1188,13 +1403,13 @@ export default function ScamEditPage() {
                   <div className="space-y-5">
                     <Field
                       label="简要说明"
-                      hint={`${form.summary.length}/200`}
+                      hint={`${form.summary.length}/300`}
                     >
                       <textarea
                         value={
                           form.summary
                         }
-                        maxLength={200}
+                        maxLength={300}
                         rows={4}
                         onChange={(
                           event
@@ -1219,6 +1434,7 @@ export default function ScamEditPage() {
                         value={
                           form.details
                         }
+                        maxLength={5000}
                         rows={12}
                         onChange={(
                           event
@@ -1342,10 +1558,9 @@ export default function ScamEditPage() {
                     <input
                       type="file"
                       multiple
+                      accept="image/jpeg,image/png,image/webp,application/pdf"
                       className="hidden"
-                      onChange={
-                        handleFiles
-                      }
+                      onChange={handleFiles}
                     />
                   </label>
 
@@ -1506,7 +1721,7 @@ export default function ScamEditPage() {
                           value={
                             form.displayName
                           }
-                          maxLength={30}
+                          maxLength={50}
                           onChange={(
                             event
                           ) =>
@@ -1541,43 +1756,35 @@ export default function ScamEditPage() {
                     <Field label="联系邮箱">
                       <input
                         type="email"
-                        value={
-                          form.contactEmail
-                        }
-                        onChange={(
-                          event
-                        ) =>
+                        value={form.contactEmail}
+                        maxLength={254}
+                        onChange={(event) =>
                           updateForm(
                             "contactEmail",
-                            event.target
-                              .value
+                            event.target.value
                           )
                         }
-                        className={
-                          inputClass
-                        }
+                        className={inputClass}
                       />
                     </Field>
 
                     <Field label="联系电话">
                       <input
                         type="tel"
-                        inputMode="tel"
-                        value={
-                          form.contactPhone
-                        }
-                        onChange={(
-                          event
-                        ) =>
+                        inputMode="numeric"
+                        maxLength={11}
+                        value={form.contactPhone}
+                        onChange={(event) => {
+                          const value = event.target.value
+                            .replace(/\D/g, "")
+                            .slice(0, 11);
+
                           updateForm(
                             "contactPhone",
-                            event.target
-                              .value
-                          )
-                        }
-                        className={
-                          inputClass
-                        }
+                            value
+                          );
+                        }}
+                        className={inputClass}
                       />
                     </Field>
                   </div>

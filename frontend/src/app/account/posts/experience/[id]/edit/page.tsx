@@ -223,8 +223,15 @@ export default function EditExperiencePage() {
 
         /*
         const response = await fetch(
-          `/api/me/experiences/${experienceId}`
-        );
+        `/api/me/experiences/${experienceId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
 
         if (!response.ok) {
           throw new Error(
@@ -367,40 +374,71 @@ export default function EditExperiencePage() {
       return "经验数据尚未加载。";
     }
 
-    if (!form.title.trim()) {
+    const title = form.title.trim();
+    const summary = form.summary.trim();
+    const content = form.content.trim();
+    const authorName = form.authorName.trim();
+
+    if (!title) {
       return "请输入经验标题。";
+    }
+
+    if (title.length > 80) {
+      return "经验标题不能超过 80 个字符。";
     }
 
     if (!form.category) {
       return "请选择经验分类。";
     }
 
-    if (!form.summary.trim()) {
+    if (!categories.includes(form.category)) {
+      return "请选择有效的经验分类。";
+    }
+
+    if (!prefectures.includes(form.prefecture)) {
+      return "请选择有效的相关地区。";
+    }
+
+    if (!summary) {
       return "请输入经验摘要。";
     }
 
-    if (
-      form.summary.trim().length >
-      160
-    ) {
-      return "经验摘要请控制在 160 字以内。";
+    if (summary.length > 300) {
+      return "经验摘要不能超过 300 个字符。";
     }
 
-    if (!form.content.trim()) {
+    if (!content) {
       return "请输入经验正文。";
     }
 
-    if (
-      form.content.trim().length <
-      50
-    ) {
-      return "经验正文至少填写 50 字。";
+    if (content.length < 50) {
+      return "经验正文至少填写 50 个字符。";
+    }
+
+    if (content.length > 5000) {
+      return "经验正文不能超过 5000 个字符。";
+    }
+
+    if (tags.length > 5) {
+      return "最多可以添加 5 个标签。";
     }
 
     if (
-      !form.authorName.trim()
+      tags.some(
+        (tag) =>
+          !tag.trim() ||
+          tag.trim().length > 20
+      )
     ) {
+      return "每个标签必须为 1～20 个字符。";
+    }
+
+    if (!authorName) {
       return "请输入显示名称。";
+    }
+
+    if (authorName.length > 50) {
+      return "显示名称不能超过 50 个字符。";
     }
 
     return "";
@@ -465,7 +503,9 @@ export default function EditExperiencePage() {
       };
 
       // TODO [API - PATCH]
-      // PATCH /api/experiences/:id
+      // PATCH /api/me/experiences/:id
+      // Purpose: 修改当前登录用户自己的经验文章。
+      // Backend must verify ownership.
       // Purpose:
       // 修改当前用户自己的经验文章。
       // 后端必须验证 ownership。
@@ -979,7 +1019,7 @@ export default function EditExperiencePage() {
                       )
                     }
                     rows={4}
-                    maxLength={160}
+                    maxLength={300}
                     className={`${inputClass} resize-none leading-7`}
                   />
 
@@ -987,7 +1027,7 @@ export default function EditExperiencePage() {
                     current={
                       form.summary.length
                     }
-                    max={160}
+                    max={300}
                   />
                 </Field>
               </FormSection>
@@ -1015,6 +1055,7 @@ export default function EditExperiencePage() {
                       )
                     }
                     rows={18}
+                    maxLength={5000}
                     className={`${inputClass} min-h-[420px] resize-y leading-8`}
                   />
 
@@ -1030,15 +1071,14 @@ export default function EditExperiencePage() {
                     "
                   >
                     <span>
-                      最少建议 50 字
+                      最少 50 个字符
                     </span>
 
                     <span>
                       {
                         form.content
                           .length
-                      }{" "}
-                      字
+                      } / 5000
                     </span>
                   </div>
                 </Field>
@@ -1195,7 +1235,7 @@ export default function EditExperiencePage() {
                           event.target.value
                         )
                       }
-                      maxLength={30}
+                      maxLength={50}
                       className={`${inputClass} pl-11`}
                     />
                   </div>

@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 
 import Container from "@/components/layout/Container";
+import CommentSection from "@/components/comments/CommentSection";
 
 type RiskType =
   | "consumer"
@@ -1343,7 +1344,55 @@ export default function ScamDetailPage() {
                   )}
                 </div>
               </SectionCard>
+
+            {/* COMMENTS */}
+            <div id="comments">
+              <SectionCard
+                icon={<MessageSquareReply size={19} />}
+                eyebrow="DISCUSSION"
+                title="评论与补充"
+              >
+                <div
+                  className="
+                    mb-6
+                    rounded-2xl
+                    border
+                    border-amber-200
+                    bg-amber-50
+                    p-4
+                  "
+                >
+                  <div className="flex items-start gap-3">
+                    <ShieldAlert
+                      size={17}
+                      className="
+                        mt-0.5
+                        shrink-0
+                        text-amber-700
+                      "
+                    />
+
+                    <p
+                      className="
+                        text-xs
+                        leading-6
+                        text-amber-900
+                      "
+                    >
+                      评论区用于补充经历、提供线索和讨论风险。
+                      请勿公开他人的住址、电话、证件等隐私信息，
+                      也不要将未经核实的信息表述为确定事实。
+                    </p>
+                  </div>
+                </div>
+
+                <CommentSection
+                  contentType="scam"
+                  contentId={report.id}
+                />
+              </SectionCard>
             </div>
+          </div>
 
             {/* SIDEBAR */}
 

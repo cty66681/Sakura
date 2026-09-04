@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 const navItems = [
   {
@@ -19,55 +22,85 @@ const navItems = [
   },
   {
     title: "经验",
-    href: "/experiences",
+    href: "/experience",
   },
   {
     title: "避坑",
-    href: "/scams",
+    href: "/scam",
   },
   {
     title: "AI",
     href: "/ai-tools",
   },
-];
+] as const;
 
 export default function Navigation() {
+  const pathname = usePathname();
+
+  function isActive(href: string) {
+    if (href === "/") {
+      return pathname === "/";
+    }
+
+    return (
+      pathname === href ||
+      pathname.startsWith(`${href}/`)
+    );
+  }
+
   return (
-    <nav className="hidden lg:block">
+    <nav
+      className="
+        hidden
+        items-center
+        gap-1
+        lg:flex
+      "
+    >
+      {navItems.map((item) => {
+        const active = isActive(item.href);
 
-      <ul className="flex items-center gap-2">
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={`
+              relative
+              flex
+              min-h-11
+              items-center
+              justify-center
+              rounded-xl
+              px-3.5
+              text-sm
+              font-bold
+              transition-all
+              ${
+                active
+                  ? "bg-slate-100 text-slate-950"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-950"
+              }
+            `}
+          >
+            {item.title}
 
-        {navItems.map((item) => (
-          <li key={item.href}>
-
-            <Link
-              href={item.href}
-              className="
-                rounded-xl
-
-                px-4
-                py-2
-
-                text-sm
-                font-semibold
-
-                text-slate-600
-
-                transition-all
-                duration-300
-
-                hover:bg-slate-100
-                hover:text-blue-600
-              "
-            >
-              {item.title}
-            </Link>
-
-          </li>
-        ))}
-
-      </ul>
-
+            {active && (
+              <span
+                className="
+                  absolute
+                  bottom-1
+                  left-1/2
+                  h-1
+                  w-1
+                  -translate-x-1/2
+                  rounded-full
+                  bg-blue-600
+                "
+              />
+            )}
+          </Link>
+        );
+      })}
     </nav>
   );
 }

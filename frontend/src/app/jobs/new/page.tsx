@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import {
-  FormEvent,
+  type FormEvent,
+  type ReactNode,
   useMemo,
   useState,
 } from "react";
@@ -170,6 +171,27 @@ const initialForm: JobForm = {
   email: "",
 };
 
+function getSalaryMax(
+  salaryType: string
+) {
+  switch (salaryType) {
+    case "时薪":
+      return 100_000;
+
+    case "日薪":
+      return 1_000_000;
+
+    case "月薪":
+      return 10_000_000;
+
+    case "年薪":
+      return 100_000_000;
+
+    default:
+      return 100_000_000;
+  }
+}
+
 /*
 |--------------------------------------------------------------------------
 | 工作发布 API
@@ -266,8 +288,22 @@ export default function NewJobPage() {
       return "请输入公司名称。";
     }
 
+    if (
+      form.company.trim().length >
+      100
+    ) {
+      return "公司名称不能超过 100 个字符。";
+    }
+
     if (!form.title.trim()) {
       return "请输入招聘职位。";
+    }
+
+    if (
+      form.title.trim().length >
+      80
+    ) {
+      return "招聘职位不能超过 80 个字符。";
     }
 
     if (!form.prefecture) {
@@ -278,6 +314,26 @@ export default function NewJobPage() {
       return "请输入市区町村。";
     }
 
+    if (
+      form.city.trim().length > 50
+    ) {
+      return "市区町村不能超过 50 个字符。";
+    }
+
+    if (
+      form.address.trim().length >
+      150
+    ) {
+      return "详细地址不能超过 150 个字符。";
+    }
+
+    if (
+      form.nearestStation.trim()
+        .length > 50
+    ) {
+      return "最近车站不能超过 50 个字符。";
+    }
+
     if (!form.employmentType) {
       return "请选择雇佣形式。";
     }
@@ -286,18 +342,43 @@ export default function NewJobPage() {
       return "请选择工作方式。";
     }
 
-    if (
-      form.salaryMin &&
-      Number(form.salaryMin) < 0
-    ) {
-      return "最低薪资格式不正确。";
+    const salaryLimit =
+      getSalaryMax(form.salaryType);
+
+    if (form.salaryMin) {
+      const salaryMin =
+        Number(form.salaryMin);
+
+      if (
+        !Number.isFinite(salaryMin) ||
+        salaryMin <= 0
+      ) {
+        return "请输入正确的最低薪资。";
+      }
+
+      if (
+        salaryMin > salaryLimit
+      ) {
+        return `${form.salaryType}不能超过 ${salaryLimit.toLocaleString()} 日元。`;
+      }
     }
 
-    if (
-      form.salaryMax &&
-      Number(form.salaryMax) < 0
-    ) {
-      return "最高薪资格式不正确。";
+    if (form.salaryMax) {
+      const salaryMax =
+        Number(form.salaryMax);
+
+      if (
+        !Number.isFinite(salaryMax) ||
+        salaryMax <= 0
+      ) {
+        return "请输入正确的最高薪资。";
+      }
+
+      if (
+        salaryMax > salaryLimit
+      ) {
+        return `${form.salaryType}不能超过 ${salaryLimit.toLocaleString()} 日元。`;
+      }
     }
 
     if (
@@ -309,8 +390,50 @@ export default function NewJobPage() {
       return "最低薪资不能高于最高薪资。";
     }
 
+    if (
+      form.experience.trim().length >
+      200
+    ) {
+      return "经验要求不能超过 200 个字符。";
+    }
+
+    if (
+      form.education.trim().length >
+      100
+    ) {
+      return "学历要求不能超过 100 个字符。";
+    }
+
+    if (
+      form.language.trim().length >
+      200
+    ) {
+      return "语言要求不能超过 200 个字符。";
+    }
+
+    if (
+      form.workingHours.trim().length >
+      100
+    ) {
+      return "工作时间不能超过 100 个字符。";
+    }
+
+    if (
+      form.holiday.trim().length >
+      100
+    ) {
+      return "休息 / 休日不能超过 100 个字符。";
+    }
+
     if (!form.description.trim()) {
       return "请输入招聘详细内容。";
+    }
+
+    if (
+      form.description.trim().length >
+      5000
+    ) {
+      return "招聘详细内容不能超过 5000 个字符。";
     }
 
     if (!form.contactName.trim()) {
@@ -318,10 +441,56 @@ export default function NewJobPage() {
     }
 
     if (
+      form.contactName.trim().length <
+      2
+    ) {
+      return "招聘联系人至少需要 2 个字符。";
+    }
+
+    if (
+      form.contactName.trim().length >
+      50
+    ) {
+      return "招聘联系人不能超过 50 个字符。";
+    }
+
+    if (
+      !/^[一-龯々ぁ-んァ-ヶーa-zA-Z\s・]+$/.test(
+        form.contactName.trim()
+      )
+    ) {
+      return "招聘联系人包含不支持的字符。";
+    }
+
+    if (
       !form.phone.trim() &&
       !form.email.trim()
     ) {
       return "联系电话和邮箱至少填写一项。";
+    }
+
+    if (
+      form.phone &&
+      !/^0\d{9,10}$/.test(
+        form.phone
+      )
+    ) {
+      return "请输入正确的日本电话号码。";
+    }
+
+    if (
+      form.email.length > 254
+    ) {
+      return "邮箱地址不能超过 254 个字符。";
+    }
+
+    if (
+      form.email &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+        form.email
+      )
+    ) {
+      return "请输入正确的招聘邮箱。";
     }
 
     return "";
@@ -667,6 +836,7 @@ export default function NewJobPage() {
 
                     <input
                       value={form.company}
+                      maxLength={100}
                       onChange={(event) =>
                         updateField(
                           "company",
@@ -691,6 +861,7 @@ export default function NewJobPage() {
 
                     <input
                       value={form.title}
+                      maxLength={80}
                       onChange={(event) =>
                         updateField(
                           "title",
@@ -815,6 +986,7 @@ export default function NewJobPage() {
                 >
                   <input
                     value={form.city}
+                    maxLength={50}
                     onChange={(event) =>
                       updateField(
                         "city",
@@ -838,6 +1010,7 @@ export default function NewJobPage() {
 
                     <input
                       value={form.address}
+                      maxLength={150}
                       onChange={(event) =>
                         updateField(
                           "address",
@@ -852,9 +1025,8 @@ export default function NewJobPage() {
 
                 <Field label="最近车站">
                   <input
-                    value={
-                      form.nearestStation
-                    }
+                    value={form.nearestStation}
+                    maxLength={50}
                     onChange={(event) =>
                       updateField(
                         "nearestStation",
@@ -910,9 +1082,10 @@ export default function NewJobPage() {
 
                 <Field label="最低薪资">
                   <MoneyInput
-                    value={
-                      form.salaryMin
-                    }
+                    value={form.salaryMin}
+                    max={getSalaryMax(
+                      form.salaryType
+                    )}
                     onChange={(value) =>
                       updateField(
                         "salaryMin",
@@ -920,19 +1093,23 @@ export default function NewJobPage() {
                       )
                     }
                     placeholder={
-                      form.salaryType ===
-                      "年薪"
+                      form.salaryType === "年薪"
                         ? "5000000"
-                        : "300000"
+                        : form.salaryType === "时薪"
+                          ? "1500"
+                          : form.salaryType === "日薪"
+                            ? "12000"
+                            : "300000"
                     }
                   />
                 </Field>
 
                 <Field label="最高薪资">
                   <MoneyInput
-                    value={
-                      form.salaryMax
-                    }
+                    value={form.salaryMax}
+                    max={getSalaryMax(
+                      form.salaryType
+                    )}
                     onChange={(value) =>
                       updateField(
                         "salaryMax",
@@ -940,10 +1117,13 @@ export default function NewJobPage() {
                       )
                     }
                     placeholder={
-                      form.salaryType ===
-                      "年薪"
+                      form.salaryType === "年薪"
                         ? "7000000"
-                        : "500000"
+                        : form.salaryType === "时薪"
+                          ? "2500"
+                          : form.salaryType === "日薪"
+                            ? "20000"
+                            : "500000"
                     }
                   />
                 </Field>
@@ -965,9 +1145,8 @@ export default function NewJobPage() {
                     />
 
                     <input
-                      value={
-                        form.experience
-                      }
+                      value={form.experience}
+                      maxLength={200}
                       onChange={(event) =>
                         updateField(
                           "experience",
@@ -988,9 +1167,8 @@ export default function NewJobPage() {
                     />
 
                     <input
-                      value={
-                        form.education
-                      }
+                      value={form.education}
+                      maxLength={100}
                       onChange={(event) =>
                         updateField(
                           "education",
@@ -1013,17 +1191,18 @@ export default function NewJobPage() {
                       className={iconClass}
                     />
 
-                    <input
-                      value={form.language}
-                      onChange={(event) =>
-                        updateField(
-                          "language",
-                          event.target.value
-                        )
-                      }
-                      placeholder="例如：日语N2以上，中文不限"
-                      className={`${inputClass} pl-11`}
-                    />
+                      <input
+                        value={form.language}
+                        maxLength={200}
+                        onChange={(event) =>
+                          updateField(
+                            "language",
+                            event.target.value
+                          )
+                        }
+                        placeholder="例如：日语N2以上，中文不限"
+                        className={`${inputClass} pl-11`}
+                      />
                   </div>
                 </Field>
               </FormSection>
@@ -1044,9 +1223,8 @@ export default function NewJobPage() {
                     />
 
                     <input
-                      value={
-                        form.workingHours
-                      }
+                      value={form.workingHours}
+                      maxLength={100}
                       onChange={(event) =>
                         updateField(
                           "workingHours",
@@ -1062,6 +1240,7 @@ export default function NewJobPage() {
                 <Field label="休息 / 休日">
                   <input
                     value={form.holiday}
+                    maxLength={100}
                     onChange={(event) =>
                       updateField(
                         "holiday",
@@ -1153,9 +1332,8 @@ export default function NewJobPage() {
                   full
                 >
                   <textarea
-                    value={
-                      form.description
-                    }
+                    value={form.description}
+                    maxLength={5000}
                     onChange={(event) =>
                       updateField(
                         "description",
@@ -1165,18 +1343,18 @@ export default function NewJobPage() {
                     rows={10}
                     placeholder={`例如：
 
-【工作内容】
-・负责公司内部系统开发
-・Python / FastAPI 后端开发
-・数据库设计及维护
+                  【工作内容】
+                  ・负责公司内部系统开发
+                  ・Python / FastAPI 后端开发
+                  ・数据库设计及维护
 
-【招聘要求】
-・Python开发经验
-・能够使用日语进行工作沟通
+                  【招聘要求】
+                  ・Python开发经验
+                  ・能够使用日语进行工作沟通
 
-【欢迎条件】
-・有日本IT项目经验
-・有AWS经验`}
+                  【欢迎条件】
+                  ・有日本IT项目经验
+                  ・有AWS经验`}
                     className={`${inputClass} resize-y leading-7`}
                   />
 
@@ -1191,8 +1369,7 @@ export default function NewJobPage() {
                     {
                       form.description
                         .length
-                    }{" "}
-                    字
+                    } / 5000 字
                   </div>
                 </Field>
               </FormSection>
@@ -1216,16 +1393,24 @@ export default function NewJobPage() {
                     />
 
                     <input
-                      value={
-                        form.contactName
-                      }
-                      onChange={(event) =>
+                      type="text"
+                      maxLength={50}
+                      value={form.contactName}
+                      onChange={(event) => {
+                        const value =
+                          event.target.value
+                            .replace(
+                              /[^一-龯々ぁ-んァ-ヶーa-zA-Z\s・]/g,
+                              ""
+                            )
+                            .slice(0, 50);
+
                         updateField(
                           "contactName",
-                          event.target.value
-                        )
-                      }
-                      placeholder="联系人姓名"
+                          value
+                        );
+                      }}
+                      placeholder="例如：田中太郎"
                       className={`${inputClass} pl-11`}
                     />
                   </div>
@@ -1237,14 +1422,18 @@ export default function NewJobPage() {
 
                     <input
                       type="tel"
+                      inputMode="numeric"
+                      maxLength={11}
                       value={form.phone}
                       onChange={(event) =>
                         updateField(
                           "phone",
                           event.target.value
+                            .replace(/\D/g, "")
+                            .slice(0, 11)
                         )
                       }
-                      placeholder="03-1234-5678"
+                      placeholder="09012345678"
                       className={`${inputClass} pl-11`}
                     />
                   </div>
@@ -1262,6 +1451,7 @@ export default function NewJobPage() {
 
                     <input
                       type="email"
+                      maxLength={254}
                       value={form.email}
                       onChange={(event) =>
                         updateField(
@@ -1626,7 +1816,7 @@ function FormSection({
 }: {
   title: string;
   description: string;
-  children: React.ReactNode;
+  children: ReactNode;
   singleColumn?: boolean;
 }) {
   return (
@@ -1696,7 +1886,7 @@ function Field({
   label: string;
   required?: boolean;
   full?: boolean;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div
@@ -1735,10 +1925,14 @@ function MoneyInput({
   value,
   onChange,
   placeholder,
+  max,
 }: {
   value: string;
-  onChange: (value: string) => void;
+  onChange: (
+    value: string
+  ) => void;
   placeholder: string;
+  max: number;
 }) {
   return (
     <div className="relative">
@@ -1748,13 +1942,31 @@ function MoneyInput({
       />
 
       <input
-        type="number"
-        min="0"
-        step="1"
+        type="text"
+        inputMode="numeric"
         value={value}
-        onChange={(event) =>
-          onChange(event.target.value)
-        }
+        onChange={(event) => {
+          const raw =
+            event.target.value.replace(
+              /\D/g,
+              ""
+            );
+
+          if (!raw) {
+            onChange("");
+            return;
+          }
+
+          const amount =
+            Math.min(
+              Number(raw),
+              max
+            );
+
+          onChange(
+            String(amount)
+          );
+        }}
         placeholder={placeholder}
         className={`${inputClass} pl-11`}
       />
@@ -1769,7 +1981,7 @@ function MoneyInput({
 function PreviewTag({
   children,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <span
@@ -1822,7 +2034,7 @@ function MessageBox({
   children,
 }: {
   type: "error" | "success";
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   const isError =
     type === "error";

@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import {
   ChangeEvent,
   FormEvent,
   useEffect,
   useMemo,
   useState,
+  ReactNode
 } from "react";
 import {
   ArrowLeft,
@@ -92,6 +93,7 @@ interface MockHouse {
 }
 
 const MAX_IMAGES = 10;
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
 
 const prefectures = [
   "北海道",
@@ -274,7 +276,7 @@ function createMockHouse(id: string): MockHouse {
       nearestStation: "池袋站",
       stationWalk: "8",
 
-      floor: "5 / 10层",
+      floor: "5",
       builtYear: "2019",
       direction: "南",
       structure: "RC",
@@ -283,9 +285,9 @@ function createMockHouse(id: string): MockHouse {
       description:
         "池袋站步行约8分钟，附近有便利店、超市和餐饮店。\n\n房间采光良好，独立卫浴，可养小型宠物。具体初期费用和入住条件可以联系咨询。",
 
-      contactName: "Sakura 房产担当",
+      contactName: "田中太郎",
       company: "Sakura Housing",
-      phone: "090-1234-5678",
+      phone: "09012345678",
       email: "house@example.com",
     },
 
@@ -303,7 +305,6 @@ function createMockHouse(id: string): MockHouse {
 
 export default function EditHousePage() {
   const params = useParams<{ id: string }>();
-  const router = useRouter();
 
   const houseId = params.id;
 
@@ -449,11 +450,21 @@ export default function EditHousePage() {
       return;
     }
 
+    const oversized = files.some(
+      (file) => file.size > MAX_IMAGE_SIZE
+    );
+
     const accepted = files
-      .filter((file) =>
-        file.type.startsWith("image/")
+      .filter(
+        (file) =>
+          file.type.startsWith("image/") &&
+          file.size <= MAX_IMAGE_SIZE
       )
       .slice(0, remaining);
+
+    if (oversized) {
+      setError("单张图片不能超过 10MB。");
+    }
 
     const newImages: LocalImage[] =
       accepted.map((file) => ({
@@ -471,6 +482,10 @@ export default function EditHousePage() {
     if (files.length > remaining) {
       setError(
         `最多可以上传 ${MAX_IMAGES} 张图片。`
+      );
+    } else if (oversized) {
+      setError(
+        "单张图片不能超过 10MB。"
       );
     } else {
       setError("");
@@ -1063,6 +1078,7 @@ export default function EditHousePage() {
                 >
                   <input
                     value={form.title}
+                    maxLength={80}
                     onChange={(event) =>
                       updateField(
                         "title",
@@ -1080,6 +1096,7 @@ export default function EditHousePage() {
                 >
                   <MoneyInput
                     value={form.rent}
+                    max={10_000_000}
                     onChange={(value) =>
                       updateField(
                         "rent",
@@ -1094,9 +1111,8 @@ export default function EditHousePage() {
                   hint="日元 / 月"
                 >
                   <MoneyInput
-                    value={
-                      form.managementFee
-                    }
+                    value={form.managementFee}
+                    max={1_000_000}
                     onChange={(value) =>
                       updateField(
                         "managementFee",
@@ -1200,15 +1216,26 @@ export default function EditHousePage() {
                 >
                   <input
                     type="number"
-                    min="0"
+                    inputMode="decimal"
+                    min="1"
+                    max="10000"
                     step="0.1"
                     value={form.area}
-                    onChange={(event) =>
-                      updateField(
-                        "area",
-                        event.target.value
-                      )
-                    }
+                    onChange={(event) => {
+                      const value =
+                        event.target.value;
+
+                      if (
+                        value === "" ||
+                        (Number(value) >= 0 &&
+                          Number(value) <= 10000)
+                      ) {
+                        updateField(
+                          "area",
+                          value
+                        );
+                      }
+                    }}
                     className={inputClass}
                   />
                 </Field>
@@ -1259,6 +1286,7 @@ export default function EditHousePage() {
                 >
                   <input
                     value={form.city}
+                    maxLength={50}
                     onChange={(event) =>
                       updateField(
                         "city",
@@ -1289,6 +1317,7 @@ export default function EditHousePage() {
 
                     <input
                       value={form.address}
+                      maxLength={150}
                       onChange={(event) =>
                         updateField(
                           "address",
@@ -1305,6 +1334,7 @@ export default function EditHousePage() {
                     value={
                       form.nearestStation
                     }
+                    maxLength={50}
                     onChange={(event) =>
                       updateField(
                         "nearestStation",
@@ -1321,16 +1351,26 @@ export default function EditHousePage() {
                 >
                   <input
                     type="number"
+                    inputMode="numeric"
                     min="0"
-                    value={
-                      form.stationWalk
-                    }
-                    onChange={(event) =>
-                      updateField(
-                        "stationWalk",
-                        event.target.value
-                      )
-                    }
+                    max="120"
+                    step="1"
+                    value={form.stationWalk}
+                    onChange={(event) => {
+                      const value =
+                        event.target.value;
+
+                      if (
+                        value === "" ||
+                        (Number(value) >= 0 &&
+                          Number(value) <= 120)
+                      ) {
+                        updateField(
+                          "stationWalk",
+                          value
+                        );
+                      }
+                    }}
                     className={inputClass}
                   />
                 </Field>
@@ -1344,13 +1384,39 @@ export default function EditHousePage() {
               >
                 <Field label="楼层">
                   <input
+                    type="text"
+                    maxLength={3}
                     value={form.floor}
-                    onChange={(event) =>
+                    onChange={(event) => {
+                      let value =
+                        event.target.value
+                          .toUpperCase()
+                          .replace(
+                            /[^0-9B]/g,
+                            ""
+                          );
+
+                      if (
+                        value.startsWith("B")
+                      ) {
+                        value =
+                          "B" +
+                          value
+                            .slice(1)
+                            .replace(/\D/g, "")
+                            .slice(0, 2);
+                      } else {
+                        value = value
+                          .replace(/\D/g, "")
+                          .slice(0, 3);
+                      }
+
                       updateField(
                         "floor",
-                        event.target.value
-                      )
-                    }
+                        value
+                      );
+                    }}
+                    placeholder="例如：5 或 B1"
                     className={inputClass}
                   />
                 </Field>
@@ -1358,17 +1424,29 @@ export default function EditHousePage() {
                 <Field label="建筑年份">
                   <input
                     type="number"
-                    min="1900"
-                    max="2100"
-                    value={
-                      form.builtYear
+                    inputMode="numeric"
+                    min="1800"
+                    max={
+                      new Date().getFullYear() +
+                      1
                     }
-                    onChange={(event) =>
-                      updateField(
-                        "builtYear",
-                        event.target.value
-                      )
-                    }
+                    value={form.builtYear}
+                    onChange={(event) => {
+                      const value =
+                        event.target.value;
+
+                      if (
+                        value === "" ||
+                        Number(value) <=
+                          new Date().getFullYear() +
+                            1
+                      ) {
+                        updateField(
+                          "builtYear",
+                          value
+                        );
+                      }
+                    }}
                     className={inputClass}
                   />
                 </Field>
@@ -1689,9 +1767,8 @@ export default function EditHousePage() {
                   full
                 >
                   <textarea
-                    value={
-                      form.description
-                    }
+                    value={form.description}
+                    maxLength={5000}
                     onChange={(event) =>
                       updateField(
                         "description",
@@ -1713,8 +1790,7 @@ export default function EditHousePage() {
                     {
                       form.description
                         .length
-                    }{" "}
-                    字
+                    } / 5000 字
                   </p>
                 </Field>
               </FormSection>
@@ -1743,15 +1819,24 @@ export default function EditHousePage() {
                     />
 
                     <input
-                      value={
-                        form.contactName
-                      }
-                      onChange={(event) =>
+                      type="text"
+                      maxLength={50}
+                      value={form.contactName}
+                      onChange={(event) => {
+                        const value =
+                          event.target.value
+                            .replace(
+                              /[^一-龯々ぁ-んァ-ヶーa-zA-Z\s・]/g,
+                              ""
+                            )
+                            .slice(0, 50);
+
                         updateField(
                           "contactName",
-                          event.target.value
-                        )
-                      }
+                          value
+                        );
+                      }}
+                      placeholder="例如：田中太郎"
                       className={`${inputClass} pl-11`}
                     />
                   </div>
@@ -1760,6 +1845,7 @@ export default function EditHousePage() {
                 <Field label="公司 / 店铺">
                   <input
                     value={form.company}
+                    maxLength={100}
                     onChange={(event) =>
                       updateField(
                         "company",
@@ -1789,13 +1875,18 @@ export default function EditHousePage() {
 
                     <input
                       type="tel"
+                      inputMode="numeric"
+                      maxLength={11}
                       value={form.phone}
                       onChange={(event) =>
                         updateField(
                           "phone",
                           event.target.value
+                            .replace(/\D/g, "")
+                            .slice(0, 11)
                         )
                       }
+                      placeholder="09012345678"
                       className={`${inputClass} pl-11`}
                     />
                   </div>
@@ -1817,6 +1908,7 @@ export default function EditHousePage() {
 
                     <input
                       type="email"
+                      maxLength={254}
                       value={form.email}
                       onChange={(event) =>
                         updateField(
@@ -2244,7 +2336,7 @@ function FormSection({
 }: {
   title: string;
   description: string;
-  children: React.ReactNode;
+  children: ReactNode;
   singleColumn?: boolean;
 }) {
   return (
@@ -2316,7 +2408,7 @@ function Field({
   hint?: string;
   required?: boolean;
   full?: boolean;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div
@@ -2374,9 +2466,13 @@ function Field({
 function MoneyInput({
   value,
   onChange,
+  max,
 }: {
   value: string;
-  onChange: (value: string) => void;
+  onChange: (
+    value: string
+  ) => void;
+  max: number;
 }) {
   return (
     <div className="relative">
@@ -2396,12 +2492,31 @@ function MoneyInput({
       </span>
 
       <input
-        type="number"
-        min="0"
+        type="text"
+        inputMode="numeric"
         value={value}
-        onChange={(event) =>
-          onChange(event.target.value)
-        }
+        onChange={(event) => {
+          const raw =
+            event.target.value.replace(
+              /\D/g,
+              ""
+            );
+
+          if (!raw) {
+            onChange("");
+            return;
+          }
+
+          const amount =
+            Math.min(
+              Number(raw),
+              max
+            );
+
+          onChange(
+            String(amount)
+          );
+        }}
         className={`${inputClass} pl-9`}
       />
     </div>
@@ -2417,7 +2532,7 @@ function MessageBox({
   children,
 }: {
   type: "error" | "success";
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   const isError =
     type === "error";

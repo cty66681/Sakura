@@ -1,7 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import {
+  type ReactNode,
+  useMemo,
+  useState,
+} from "react";
 import {
   ArrowLeft,
   BriefcaseBusiness,
@@ -189,14 +194,24 @@ const statusOptions = [
 ] as const;
 
 export default function AccountPostsPage() {
-  const [posts, setPosts] = useState<UserPost[]>(mockPosts);
+  const searchParams = useSearchParams();
 
-  const [searchInput, setSearchInput] = useState("");
-  const [keyword, setKeyword] = useState("");
+  const typeFromUrl = parsePostType(
+    searchParams.get("type")
+  );
+
+  const [posts, setPosts] =
+    useState<UserPost[]>(mockPosts);
+
+  const [searchInput, setSearchInput] =
+    useState("");
+
+  const [keyword, setKeyword] =
+    useState("");
 
   const [type, setType] = useState<
     "all" | PostType
-  >("all");
+  >(() => typeFromUrl);
 
   const [status, setStatus] = useState<
     "all" | PostStatus
@@ -1406,7 +1421,7 @@ function SelectBox({
 }: {
   value: string;
   onChange: (value: string) => void;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div className="relative">
@@ -1501,6 +1516,21 @@ function FilterChip({
 /* ================================================= */
 /* HELPERS */
 /* ================================================= */
+
+function parsePostType(
+  value: string | null
+): "all" | PostType {
+  if (
+    value === "house" ||
+    value === "job" ||
+    value === "experience" ||
+    value === "scam"
+  ) {
+    return value;
+  }
+
+  return "all";
+}
 
 function getTypeLabel(
   type: PostType
