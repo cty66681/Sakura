@@ -23,6 +23,10 @@ interface PageProps {
   params: Promise<{
     id: string;
   }>;
+
+  searchParams: Promise<{
+    fromPage?: string;
+  }>;
 }
 
 /*
@@ -45,8 +49,20 @@ interface PageProps {
 
 export default async function HouseDetailPage({
   params,
+  searchParams,
 }: PageProps) {
   const { id } = await params;
+
+  const { fromPage } =
+    await searchParams;
+
+  const page = Number(fromPage);
+
+  const returnHref =
+    Number.isInteger(page) &&
+    page > 1
+      ? `/houses?page=${page}#house-results`
+      : "/houses#house-results";
 
   const house = houses.find(
     (item) => item.id === Number(id)
@@ -77,7 +93,7 @@ export default async function HouseDetailPage({
             "
           >
             <Link
-              href="/houses"
+              href={returnHref}
               className="
                 inline-flex
                 items-center

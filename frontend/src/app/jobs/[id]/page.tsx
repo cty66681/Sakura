@@ -16,8 +16,9 @@ import JobContact from "@/components/job/JobContact";
 import { jobs } from "@/data/jobs";
 
 interface Props {
-  params: Promise<{
-    id: string;
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{
+    fromPage?: string;
   }>;
 }
 
@@ -65,8 +66,20 @@ interface Props {
 
 export default async function JobDetailPage({
   params,
+  searchParams
 }: Props) {
   const { id } = await params;
+
+  const { fromPage } =
+  await searchParams;
+
+  const page = Number(fromPage);
+
+  const returnHref =
+    Number.isInteger(page) &&
+    page > 1
+      ? `/jobs?page=${page}#job-results`
+      : "/jobs#job-results";
 
   const job = jobs.find(
     (item) => item.id === Number(id)
@@ -108,7 +121,7 @@ export default async function JobDetailPage({
         <Container>
           <div className="relative py-6">
             <Link
-              href="/jobs"
+              href={returnHref}
               className="
                 inline-flex
                 items-center
@@ -195,6 +208,59 @@ export default async function JobDetailPage({
               }
               holiday={job.holiday}
             />
+            <div
+              className="
+                rounded-[24px]
+                border
+                border-blue-100
+                bg-blue-50/50
+                p-6
+                shadow-sm
+              "
+            >
+              <p
+                className="
+                  text-sm
+                  font-black
+                  text-slate-900
+                "
+              >
+                外国人求职信息
+              </p>
+
+              <div
+                className="
+                  mt-4
+                  flex
+                  flex-wrap
+                  gap-2
+                "
+              >
+                {job.foreignerFriendly && (
+                  <JobFeatureTag>
+                    外国人友好
+                  </JobFeatureTag>
+                )}
+
+                {job.chineseAvailable && (
+                  <JobFeatureTag>
+                    中文可
+                  </JobFeatureTag>
+                )}
+
+                {job.visaSupport && (
+                  <JobFeatureTag>
+                    签证支援
+                  </JobFeatureTag>
+                )}
+
+                {job.beginnerFriendly && (
+                  <JobFeatureTag>
+                    未经验可
+                  </JobFeatureTag>
+                )}
+              </div>
+            </div>
 
             <JobBenefit
               benefits={job.benefits}
@@ -374,5 +440,31 @@ function InfoRow({
         {value}
       </span>
     </div>
+  );
+}
+
+function JobFeatureTag({
+  children,
+}: {
+  children: string;
+}) {
+  return (
+    <span
+      className="
+        inline-flex
+        items-center
+        rounded-full
+        border
+        border-blue-200
+        bg-white
+        px-3
+        py-1.5
+        text-xs
+        font-bold
+        text-blue-700
+      "
+    >
+      {children}
+    </span>
   );
 }

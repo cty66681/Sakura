@@ -1,6 +1,30 @@
+export type HouseFeature =
+  | "pet_allowed"
+  | "foreigner_friendly"
+  | "student_allowed"
+  | "furnished"
+  | "no_deposit"
+  | "no_key_money"
+  | "no_guarantor"
+  | "near_station"
+  | "south_facing"
+  | "immediate_move_in";
+
 export interface House {
   id: number;
   title: string;
+
+  prefecture: string;
+  city: string;
+  station: string;
+  walkMinutes: number | null;
+
+  rentValue: number;
+  managementFeeValue: number;
+  depositMonths: number;
+  keyMoneyMonths: number;
+
+  areaValue: number;
 
   rent: string;
   managementFee: string;
@@ -22,6 +46,8 @@ export interface House {
   views: number;
 
   images: string[];
+
+  features: HouseFeature[];
   tags: string[];
 
   description: string;
@@ -37,6 +63,18 @@ export const houses: House[] = [
     id: 1,
 
     title: "池袋 1LDK",
+
+    prefecture: "东京",
+    city: "丰岛区",
+    station: "池袋",
+    walkMinutes: 8,
+
+    rentValue: 89000,
+    managementFeeValue: 5000,
+    depositMonths: 1,
+    keyMoneyMonths: 0,
+
+    areaValue: 35,
 
     rent: "¥89,000",
     managementFee: "¥5,000",
@@ -61,6 +99,13 @@ export const houses: House[] = [
 
     images: [],
 
+    features: [
+      "pet_allowed",
+      "no_key_money",
+      "near_station",
+      "immediate_move_in",
+    ],
+
     tags: [
       "可养宠物",
       "免礼金",
@@ -80,6 +125,18 @@ export const houses: House[] = [
     id: 2,
 
     title: "新宿 Studio",
+
+    prefecture: "东京",
+    city: "新宿区",
+    station: "新宿",
+    walkMinutes: 5,
+
+    rentValue: 75000,
+    managementFeeValue: 5000,
+    depositMonths: 1,
+    keyMoneyMonths: 0,
+
+    areaValue: 22,
 
     rent: "¥75,000",
     managementFee: "¥5,000",
@@ -104,6 +161,12 @@ export const houses: House[] = [
 
     images: [],
 
+    features: [
+      "furnished",
+      "no_key_money",
+      "near_station",
+    ],
+
     tags: [
       "拎包入住",
       "近车站",
@@ -123,6 +186,18 @@ export const houses: House[] = [
     id: 3,
 
     title: "高田马场 1K",
+
+    prefecture: "东京",
+    city: "新宿区",
+    station: "高田马场",
+    walkMinutes: 6,
+
+    rentValue: 82000,
+    managementFeeValue: 6000,
+    depositMonths: 1,
+    keyMoneyMonths: 0,
+
+    areaValue: 25,
 
     rent: "¥82,000",
     managementFee: "¥6,000",
@@ -147,6 +222,13 @@ export const houses: House[] = [
 
     images: [],
 
+    features: [
+      "student_allowed",
+      "no_key_money",
+      "near_station",
+      "immediate_move_in",
+    ],
+
     tags: [
       "近车站",
       "留学生可",
@@ -166,6 +248,18 @@ export const houses: House[] = [
     id: 4,
 
     title: "中野 1DK",
+
+    prefecture: "东京",
+    city: "中野区",
+    station: "中野",
+    walkMinutes: 7,
+
+    rentValue: 92000,
+    managementFeeValue: 5000,
+    depositMonths: 1,
+    keyMoneyMonths: 1,
+
+    areaValue: 30,
 
     rent: "¥92,000",
     managementFee: "¥5,000",
@@ -190,6 +284,12 @@ export const houses: House[] = [
 
     images: [],
 
+    features: [
+      "pet_allowed",
+      "near_station",
+      "south_facing",
+    ],
+
     tags: [
       "可养宠物",
       "近车站",
@@ -209,6 +309,18 @@ export const houses: House[] = [
     id: 5,
 
     title: "大阪难波 1K",
+
+    prefecture: "大阪",
+    city: "大阪市",
+    station: "难波",
+    walkMinutes: null,
+
+    rentValue: 68000,
+    managementFeeValue: 5000,
+    depositMonths: 0,
+    keyMoneyMonths: 0,
+
+    areaValue: 24,
 
     rent: "¥68,000",
     managementFee: "¥5,000",
@@ -233,6 +345,13 @@ export const houses: House[] = [
 
     images: [],
 
+    features: [
+      "furnished",
+      "no_deposit",
+      "no_key_money",
+      "immediate_move_in",
+    ],
+
     tags: [
       "拎包入住",
       "家具家电",
@@ -252,6 +371,18 @@ export const houses: House[] = [
     id: 6,
 
     title: "横滨关内 1LDK",
+
+    prefecture: "神奈川",
+    city: "横滨市",
+    station: "关内",
+    walkMinutes: null,
+
+    rentValue: 96000,
+    managementFeeValue: 7000,
+    depositMonths: 1,
+    keyMoneyMonths: 0,
+
+    areaValue: 38,
 
     rent: "¥96,000",
     managementFee: "¥7,000",
@@ -276,6 +407,11 @@ export const houses: House[] = [
 
     images: [],
 
+    features: [
+      "pet_allowed",
+      "no_key_money",
+    ],
+
     tags: [
       "可养宠物",
       "近车站",
@@ -290,6 +426,134 @@ export const houses: House[] = [
     phone: "090-7777-8888",
     email: "yokohama@example.com",
   },
+
+  {
+    id: 7,
+    title: "赤羽 2LDK",
+
+    prefecture: "东京",
+    city: "北区",
+    station: "赤羽",
+    walkMinutes: 4,
+
+    rentValue: 128000,
+    managementFeeValue: 8000,
+    depositMonths: 0,
+    keyMoneyMonths: 0,
+
+    areaValue: 48,
+
+    rent: "¥128,000",
+    managementFee: "¥8,000",
+
+    deposit: "0个月",
+    keyMoney: "0个月",
+
+    layout: "2LDK",
+    area: "48㎡",
+
+    location: "东京 · 赤羽",
+
+    floor: "7 / 13F",
+    builtYear: "2020年",
+    direction: "南",
+    structure: "RC钢筋混凝土",
+
+    availableDate: "即日入住",
+    publishTime: "2026-08-10",
+
+    views: 132,
+
+    images: [],
+
+    features: [
+      "pet_allowed",
+      "no_deposit",
+      "no_key_money",
+      "near_station",
+      "south_facing",
+      "immediate_move_in",
+    ],
+
+    tags: [
+      "可养宠物",
+      "敷金0",
+      "免礼金",
+      "近车站",
+      "南向",
+    ],
+
+    description:
+      "赤羽站步行4分钟，2LDK户型，南向采光良好。周边超市和商业设施丰富，可咨询宠物入住条件。",
+
+    contactName: "田中 健一",
+    company: "Tokyo Living",
+    phone: "080-1111-2222",
+    email: "akabane@example.com",
+  },
+
+  {
+    id: 8,
+    title: "大塚 1K",
+
+    prefecture: "东京",
+    city: "丰岛区",
+    station: "大塚",
+    walkMinutes: 3,
+
+    rentValue: 79000,
+    managementFeeValue: 5000,
+    depositMonths: 1,
+    keyMoneyMonths: 0,
+
+    areaValue: 24,
+
+    rent: "¥79,000",
+    managementFee: "¥5,000",
+
+    deposit: "1个月",
+    keyMoney: "0个月",
+
+    layout: "1K",
+    area: "24㎡",
+
+    location: "东京 · 大塚",
+
+    floor: "6 / 10F",
+    builtYear: "2021年",
+    direction: "东",
+    structure: "RC钢筋混凝土",
+
+    availableDate: "9月下旬",
+    publishTime: "2026-08-11",
+
+    views: 118,
+
+    images: [],
+
+    features: [
+      "furnished",
+      "no_key_money",
+      "near_station",
+      "student_allowed",
+    ],
+
+    tags: [
+      "家具家电",
+      "免礼金",
+      "近车站",
+      "留学生可",
+    ],
+
+    description:
+      "大塚站步行3分钟，家具家电齐全，适合留学生和刚到东京生活的上班族。",
+
+    contactName: "小林 美咲",
+    company: "Sakura Home",
+    phone: "090-4444-5555",
+    email: "otsuka@example.com",
+  },
+
 ];
 
 /*

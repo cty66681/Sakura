@@ -1,12 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import {
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+
 import {
   BookmarkPlus,
   BriefcaseBusiness,
   Check,
   ChevronDown,
-  CircleDollarSign,
   HardHat,
   Languages,
   Laptop,
@@ -18,26 +22,40 @@ import {
   Truck,
   UtensilsCrossed,
   X,
+  Factory,
+  HeartHandshake,
+  Sparkles,
 } from "lucide-react";
 
 import Container from "@/components/layout/Container";
 import JobCard from "@/components/home/JobCard/JobCard";
 
-import { jobs } from "@/data/jobs";
+import {
+  jobs,
+  type JobCategory,
+} from "@/data/jobs";
+
+import {
+  getJobSearchGroups,
+  normalizeJobSearchText,
+  parseJobSearch,
+} from "@/lib/search/jobSearchDictionary";
+
+import {
+  useRouter,
+  useSearchParams,
+} from "next/navigation";
+
 
 /* =========================================================
    TYPES
 ========================================================= */
 
-type JobCategory =
-  | "all"
-  | "it"
-  | "construction"
-  | "logistics"
-  | "ecommerce-office"
-  | "service"
-  | "other";
 
+type JobCategoryFilter =
+  | "all"
+  | JobCategory;
+  
 type EmploymentType =
   | "all"
   | "full_time"
@@ -82,7 +100,6 @@ interface CategoryItem {
 
 interface OccupationItem {
   label: string;
-  keywords: string[];
 }
 
 /* =========================================================
@@ -240,326 +257,146 @@ const featureFilters: {
   },
 ];
 
-const categories: CategoryItem[] = [
-  {
-    key: "it",
-    title: "IT・技术",
-    subtitle: "开发 / AI / 运维 / 设计",
-  },
-  {
-    key: "construction",
-    title: "建筑・现场",
-    subtitle: "施工 / 内装 / 设备 / 电工",
-  },
-  {
-    key: "logistics",
-    title: "物流・运输",
-    subtitle: "司机 / 配送 / 仓库 / 搬家",
-  },
-  {
-    key: "ecommerce-office",
-    title: "电商・办公室",
-    subtitle: "网店 / 客服 / 事务 / 销售",
-  },
-  {
-    key: "service",
-    title: "餐饮・服务",
-    subtitle: "餐饮 / 酒店 / 清扫 / 工厂",
-  },
-  {
-    key: "other",
-    title: "其他工作",
-    subtitle: "其他行业与综合职位",
-  },
-];
+  const categories: CategoryItem[] = [
+    {
+      key: "it",
+      title: "IT・技术",
+      subtitle: "开发 / AI / 运维 / 设计",
+    },
+    {
+      key: "real-estate",
+      title: "不动产",
+      subtitle: "营业・租赁・买卖・管理・事务",
+    },
+    {
+      key: "construction",
+      title: "建筑・现场",
+      subtitle: "施工 / 内装 / 设备 / 电工",
+    },
+    {
+      key: "logistics",
+      title: "物流・运输",
+      subtitle: "司机 / 配送 / 仓库 / 搬家",
+    },
+    {
+      key: "ecommerce-office",
+      title: "电商・办公室",
+      subtitle: "网店 / 客服 / 事务 / 销售",
+    },
+    {
+      key: "service",
+      title: "餐饮・服务",
+      subtitle: "餐饮 / 酒店 / 清扫",
+    },
+    {
+      key: "other",
+      title: "其他工作",
+      subtitle: "其他行业与综合职位",
+    },
+    {
+      key: "manufacturing",
+      title: "工厂・制造",
+      subtitle: "制造 / 加工 / 检品 / 包装",
+    },
+    {
+      key: "beauty-massage",
+      title: "美容・按摩",
+      subtitle: "美容 / 美甲 / 美发 / 正规按摩",
+    },
+    {
+      key: "care-professional",
+      title: "介护・专业",
+      subtitle: "介护 / 医疗 / 教育 / 专业资格",
+    },
+  ];
 
-const occupations: Record<
-  Exclude<JobCategory, "all">,
-  OccupationItem[]
-> = {
-  it: [
-    {
-      label: "后端开发",
-      keywords: [
-        "backend",
-        "后端",
-        "java",
-        "python",
-        "spring",
-        "go",
-      ],
-    },
-    {
-      label: "前端开发",
-      keywords: [
-        "frontend",
-        "前端",
-        "react",
-        "vue",
-        "next.js",
-        "typescript",
-      ],
-    },
-    {
-      label: "AI・数据",
-      keywords: [
-        "ai",
-        "人工智能",
-        "机器学习",
-        "rag",
-        "data",
-        "数据",
-      ],
-    },
-    {
-      label: "运维・Cloud",
-      keywords: [
-        "aws",
-        "azure",
-        "cloud",
-        "云",
-        "运维",
-        "infra",
-      ],
-    },
-    {
-      label: "测试・QA",
-      keywords: [
-        "qa",
-        "test",
-        "测试",
-      ],
-    },
-    {
-      label: "PM・SE",
-      keywords: [
-        "pm",
-        "project manager",
-        "se",
-        "项目管理",
-      ],
-    },
-  ],
+  const occupations: Record<
+    Exclude<JobCategoryFilter, "all">,
+    OccupationItem[]
+  > = {
+    it: [
+      { label: "后端开发" },
+      { label: "前端开发" },
+      { label: "AI・数据" },
+      { label: "运维・Cloud" },
+      { label: "测试・QA" },
+      { label: "PM・SE" },
+    ],
 
-  construction: [
-    {
-      label: "施工管理",
-      keywords: [
-        "施工管理",
-        "現場監督",
-        "现场管理",
-      ],
-    },
-    {
-      label: "内装",
-      keywords: [
-        "内装",
-        "装修",
-      ],
-    },
-    {
-      label: "电工",
-      keywords: [
-        "电工",
-        "電気工事",
-        "電気",
-      ],
-    },
-    {
-      label: "设备",
-      keywords: [
-        "设备",
-        "設備",
-        "空調",
-        "配管",
-      ],
-    },
-    {
-      label: "解体",
-      keywords: [
-        "解体",
-        "拆除",
-      ],
-    },
-    {
-      label: "防水・涂装",
-      keywords: [
-        "防水",
-        "塗装",
-        "涂装",
-      ],
-    },
-  ],
+    "real-estate": [
+      { label: "不动产营业" },
+      { label: "租赁仲介" },
+      { label: "买卖仲介" },
+      { label: "物业管理" },
+      { label: "不动产事务" },
+      { label: "宅建事务" },
+    ],
 
-  logistics: [
-    {
-      label: "配送",
-      keywords: [
-        "配送",
-        "配達",
-        "delivery",
-      ],
-    },
-    {
-      label: "司机",
-      keywords: [
-        "司机",
-        "ドライバー",
-        "運転手",
-        "driver",
-      ],
-    },
-    {
-      label: "轻货",
-      keywords: [
-        "軽貨物",
-        "轻货",
-      ],
-    },
-    {
-      label: "仓库",
-      keywords: [
-        "仓库",
-        "倉庫",
-        "仕分け",
-        "ピッキング",
-      ],
-    },
-    {
-      label: "搬家",
-      keywords: [
-        "搬家",
-        "引越",
-      ],
-    },
-  ],
+    construction: [
+      { label: "施工管理" },
+      { label: "内装" },
+      { label: "电工" },
+      { label: "设备" },
+      { label: "解体" },
+      { label: "防水・涂装" },
+    ],
 
-  "ecommerce-office": [
-    {
-      label: "网店运营",
-      keywords: [
-        "网店",
-        "电商",
-        "ec",
-        "楽天",
-        "amazon",
-        "shopify",
-        "运营",
-      ],
-    },
-    {
-      label: "客服",
-      keywords: [
-        "客服",
-        "カスタマー",
-        "customer",
-        "call center",
-      ],
-    },
-    {
-      label: "事务",
-      keywords: [
-        "事务",
-        "事務",
-        "office",
-      ],
-    },
-    {
-      label: "翻译",
-      keywords: [
-        "翻译",
-        "翻訳",
-        "通訳",
-      ],
-    },
-    {
-      label: "销售",
-      keywords: [
-        "销售",
-        "営業",
-        "sales",
-      ],
-    },
-  ],
+    logistics: [
+      { label: "配送" },
+      { label: "司机" },
+      { label: "轻货" },
+      { label: "仓库" },
+      { label: "搬家" },
+    ],
 
-  service: [
-    {
-      label: "餐饮",
-      keywords: [
-        "餐饮",
-        "飲食",
-        "restaurant",
-        "居酒屋",
-        "ホール",
-        "キッチン",
-      ],
-    },
-    {
-      label: "便利店",
-      keywords: [
-        "便利店",
-        "コンビニ",
-      ],
-    },
-    {
-      label: "酒店",
-      keywords: [
-        "酒店",
-        "ホテル",
-        "旅館",
-      ],
-    },
-    {
-      label: "清扫",
-      keywords: [
-        "清扫",
-        "清掃",
-        "cleaning",
-      ],
-    },
-    {
-      label: "工厂",
-      keywords: [
-        "工厂",
-        "工場",
-        "製造",
-      ],
-    },
-  ],
+    "ecommerce-office": [
+      { label: "网店运营" },
+      { label: "客服" },
+      { label: "事务" },
+      { label: "翻译" },
+      { label: "销售" },
+    ],
 
-  other: [
-    {
-      label: "教育",
-      keywords: [
-        "教育",
-        "老师",
-        "教師",
-        "講師",
-      ],
-    },
-    {
-      label: "医疗・介护",
-      keywords: [
-        "介护",
-        "介護",
-        "医疗",
-        "医療",
-      ],
-    },
-    {
-      label: "美容",
-      keywords: [
-        "美容",
-        "理容",
-        "ネイル",
-      ],
-    },
-    {
-      label: "其他",
-      keywords: [],
-    },
-  ],
-};
+    service: [
+      { label: "餐饮" },
+      { label: "便利店" },
+      { label: "酒店" },
+      { label: "清扫" },
+    ],
+
+    manufacturing: [
+      { label: "食品制造" },
+      { label: "组装" },
+      { label: "加工" },
+      { label: "检品" },
+      { label: "包装" },
+    ],
+
+    "beauty-massage": [
+      { label: "美容师" },
+      { label: "美甲师" },
+      { label: "美发师" },
+      { label: "正规按摩" },
+      { label: "店铺前台" },
+    ],
+
+    "care-professional": [
+      { label: "介护" },
+      { label: "看护辅助" },
+      { label: "医疗" },
+      { label: "教育" },
+      { label: "专业资格" },
+    ],
+
+    other: [
+      { label: "摄影・视频" },
+      { label: "活动・展会" },
+      { label: "宠物相关" },
+      { label: "农业・水产" },
+      { label: "艺术・演出" },
+      { label: "其他" },
+    ],
+  };
 
 /* =========================================================
    API
@@ -575,7 +412,7 @@ const occupations: Record<
 | Query:
 | {
 |   q?: string,
-|   category?: JobCategory,
+|   category?: JobCategoryFilter,
 |   occupation?: string,
 |   region?: string,
 |   employmentType?: string,
@@ -602,24 +439,344 @@ const occupations: Record<
    HELPERS
 ========================================================= */
 
+function getMonthlySalaryValue(
+  job: (typeof jobs)[number]
+) {
+  const salary =
+    job.salaryMax ??
+    job.salaryMin ??
+    0;
+
+  switch (job.salaryType) {
+    case "hourly":
+      // 8小时 × 20个工作日
+      return salary * 8 * 20;
+
+    case "daily":
+      // 每月20个工作日
+      return salary * 20;
+
+    case "monthly":
+      return salary;
+
+    case "annual":
+      return salary / 12;
+
+    case "project":
+      /*
+       * 项目制无法可靠换算成月薪，
+       * 不参与正常薪资高低比较。
+       */
+      return 0;
+
+    default:
+      return 0;
+  }
+}
+
 function getJobText(
   job: (typeof jobs)[number]
 ) {
-  return [
-    job.company,
-    job.title,
-    job.location,
-    job.salary,
-    job.employmentType,
-    job.remote,
-    job.experience,
-    job.language,
-    ...job.tags,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
+  return normalizeJobSearchText(
+    [
+      job.title,
+      job.company,
+      job.category,
+      job.occupation,
+      job.location,
+      job.employmentType,
+      job.remote,
+      job.salary,
+      job.experience,
+      job.education,
+      job.language,
+      job.description,
+
+      ...job.tags,
+      ...job.workConditions,
+      ...job.benefits,
+
+      job.chineseAvailable
+        ? "中文 中文可 华人 中国人 中国語 中国語可"
+        : "",
+
+      job.foreignerFriendly
+        ? "外国人 外国籍 外国人可 外国人欢迎 外国人歓迎 外国人採用"
+        : "",
+
+      job.visaSupport
+        ? "签证 签证支援 签证支持 ビザ ビザ支援 ビザサポート"
+        : "",
+
+      job.beginnerFriendly
+        ? "未经验 未经验可 无经验 经验不限 未経験 未経験可 経験不問"
+        : "",
+
+      job.verified
+        ? "企业认证 认证企业 已认证 verified"
+        : "",
+    ].join(" ")
+  );
 }
+
+function getSearchMatchScore(
+  job: (typeof jobs)[number],
+  search: string
+) {
+  const groups =
+    parseJobSearch(search);
+
+  if (groups.length === 0) {
+    return 0;
+  }
+
+  const title =
+    normalizeJobSearchText(
+      job.title
+    );
+
+  const occupation =
+    normalizeJobSearchText(
+      job.occupation
+    );
+
+  const category =
+    normalizeJobSearchText(
+      job.category
+    );
+
+  const location =
+    normalizeJobSearchText(
+      job.location
+    );
+
+  const company =
+    normalizeJobSearchText(
+      job.company
+    );
+
+  const tags =
+    normalizeJobSearchText(
+      job.tags.join(" ")
+    );
+
+  const workConditions =
+    normalizeJobSearchText(
+      job.workConditions.join(" ")
+    );
+
+  const benefits =
+    normalizeJobSearchText(
+      job.benefits.join(" ")
+    );
+
+  const description =
+    normalizeJobSearchText(
+      job.description
+    );
+
+  const fullText =
+    getJobText(job);
+
+  let score = 0;
+
+  function getTermScore(
+    term: string,
+    related: boolean
+  ) {
+    if (!term) {
+      return 0;
+    }
+
+    /*
+     * 关联概念的权重明显低于精准概念。
+     *
+     * Example:
+     * 搜索“外卖”
+     * 外卖 = 精准
+     * 普通配送 = 关联
+     */
+    const multiplier =
+      related ? 0.35 : 1;
+
+    let termScore = 0;
+
+    if (occupation === term) {
+      termScore = Math.max(
+        termScore,
+        140
+      );
+    }
+
+    if (occupation.includes(term)) {
+      termScore = Math.max(
+        termScore,
+        120
+      );
+    }
+
+    if (title === term) {
+      termScore = Math.max(
+        termScore,
+        115
+      );
+    }
+
+    if (title.includes(term)) {
+      termScore = Math.max(
+        termScore,
+        100
+      );
+    }
+
+    if (location === term) {
+      termScore = Math.max(
+        termScore,
+        90
+      );
+    }
+
+    if (location.includes(term)) {
+      termScore = Math.max(
+        termScore,
+        80
+      );
+    }
+
+    if (category.includes(term)) {
+      termScore = Math.max(
+        termScore,
+        70
+      );
+    }
+
+    if (tags.includes(term)) {
+      termScore = Math.max(
+        termScore,
+        60
+      );
+    }
+
+    if (
+      workConditions.includes(term)
+    ) {
+      termScore = Math.max(
+        termScore,
+        55
+      );
+    }
+
+    if (company.includes(term)) {
+      termScore = Math.max(
+        termScore,
+        45
+      );
+    }
+
+    if (benefits.includes(term)) {
+      termScore = Math.max(
+        termScore,
+        35
+      );
+    }
+
+    if (description.includes(term)) {
+      termScore = Math.max(
+        termScore,
+        20
+      );
+    }
+
+    if (fullText.includes(term)) {
+      termScore = Math.max(
+        termScore,
+        10
+      );
+    }
+
+    return termScore * multiplier;
+  }
+
+  for (const group of groups) {
+    let exactScore = 0;
+    let relatedScore = 0;
+
+    /*
+     * 精准概念
+     */
+    for (const term of group.aliases) {
+      exactScore = Math.max(
+        exactScore,
+        getTermScore(
+          term,
+          false
+        )
+      );
+    }
+
+    /*
+     * 父级 / 子级 / 关联概念
+     */
+    for (
+      const term of
+      group.relatedAliases
+    ) {
+      relatedScore = Math.max(
+        relatedScore,
+        getTermScore(
+          term,
+          true
+        )
+      );
+    }
+
+    /*
+     * 一个搜索概念只取最佳匹配。
+     * 防止同一职位因为多个同义词重复加分。
+     */
+    score += Math.max(
+      exactScore,
+      relatedScore
+    );
+  }
+
+  /*
+   * 用户原始搜索词直接出现在标题时，
+   * 再给予额外奖励。
+   */
+  const normalizedQuery =
+    normalizeJobSearchText(search);
+
+  if (
+    normalizedQuery &&
+    title.includes(normalizedQuery)
+  ) {
+    score += 80;
+  }
+
+  return score;
+}
+
+  function sortJobsBySearchRelevance(
+    list: typeof jobs,
+    search: string
+  ) {
+    if (!search.trim()) {
+      return list;
+    }
+
+    return [...list].sort(
+      (a, b) =>
+        getSearchMatchScore(
+          b,
+          search
+        ) -
+        getSearchMatchScore(
+          a,
+          search
+        )
+    );
+  }
 
 function includesAny(
   text: string,
@@ -630,227 +787,7 @@ function includesAny(
   );
 }
 
-function inferCategory(
-  job: (typeof jobs)[number]
-): Exclude<JobCategory, "all"> {
-  const text = getJobText(job);
 
-  if (
-    includesAny(text, [
-      "施工",
-      "建筑",
-      "建築",
-      "内装",
-      "電気工事",
-      "电工",
-      "設備",
-      "配管",
-      "解体",
-      "防水",
-      "塗装",
-      "现场",
-      "現場監督",
-    ])
-  ) {
-    return "construction";
-  }
-
-  if (
-    includesAny(text, [
-      "配送",
-      "配達",
-      "ドライバー",
-      "driver",
-      "司机",
-      "倉庫",
-      "仓库",
-      "仕分け",
-      "ピッキング",
-      "軽貨物",
-      "搬家",
-      "引越",
-    ])
-  ) {
-    return "logistics";
-  }
-
-  if (
-    includesAny(text, [
-      "电商",
-      "网店",
-      "ec運営",
-      "ec运营",
-      "楽天",
-      "amazon",
-      "shopify",
-      "客服",
-      "カスタマー",
-      "事務",
-      "事务",
-      "翻译",
-      "翻訳",
-      "通訳",
-      "営業",
-      "sales",
-    ])
-  ) {
-    return "ecommerce-office";
-  }
-
-  if (
-    includesAny(text, [
-      "飲食",
-      "餐饮",
-      "居酒屋",
-      "ホール",
-      "キッチン",
-      "コンビニ",
-      "便利店",
-      "ホテル",
-      "酒店",
-      "清掃",
-      "清扫",
-      "工場",
-      "工厂",
-      "製造",
-    ])
-  ) {
-    return "service";
-  }
-
-  if (
-    includesAny(text, [
-      "java",
-      "python",
-      "react",
-      "typescript",
-      "javascript",
-      "next.js",
-      "vue",
-      "aws",
-      "azure",
-      "backend",
-      "frontend",
-      "engineer",
-      "エンジニア",
-      "developer",
-      "开发",
-      "ai",
-      "rag",
-      "cloud",
-      "infra",
-      "se",
-      "qa",
-    ])
-  ) {
-    return "it";
-  }
-
-  return "other";
-}
-
-function inferEmploymentType(
-  job: (typeof jobs)[number]
-): EmploymentType {
-  const value =
-    job.employmentType.toLowerCase();
-
-  if (
-    value.includes("正社員") ||
-    value.includes("全职")
-  ) {
-    return "full_time";
-  }
-
-  if (value.includes("契約")) {
-    return "contract";
-  }
-
-  if (value.includes("派遣")) {
-    return "dispatch";
-  }
-
-  if (
-    value.includes("業務委託") ||
-    value.includes("freelance")
-  ) {
-    return "freelance";
-  }
-
-  if (
-    value.includes("アルバイト") ||
-    value.includes("パート") ||
-    value.includes("兼职")
-  ) {
-    return "part_time";
-  }
-
-  if (
-    value.includes("实习") ||
-    value.includes("インターン")
-  ) {
-    return "intern";
-  }
-
-  return "full_time";
-}
-
-function inferWorkStyle(
-  job: (typeof jobs)[number]
-): WorkStyle {
-  const value = job.remote.toLowerCase();
-
-  if (
-    value.includes("远程") ||
-    value.includes("remote") ||
-    value.includes("リモート")
-  ) {
-    return "remote";
-  }
-
-  if (
-    value.includes("混合") ||
-    value.includes("hybrid") ||
-    value.includes("ハイブリッド")
-  ) {
-    return "hybrid";
-  }
-
-  return "onsite";
-}
-
-function inferSalaryType(
-  salary: string
-): SalaryType {
-  const value = salary.toLowerCase();
-
-  if (
-    value.includes("时薪") ||
-    value.includes("時給") ||
-    value.includes("/h") ||
-    value.includes("hour")
-  ) {
-    return "hourly";
-  }
-
-  if (
-    value.includes("日薪") ||
-    value.includes("日給") ||
-    value.includes("/日")
-  ) {
-    return "daily";
-  }
-
-  if (
-    value.includes("年薪") ||
-    value.includes("年収") ||
-    value.includes("/年")
-  ) {
-    return "annual";
-  }
-
-  return "monthly";
-}
 
 function matchesJapaneseLevel(
   job: (typeof jobs)[number],
@@ -860,105 +797,43 @@ function matchesJapaneseLevel(
     return true;
   }
 
-  const text = getJobText(job);
-
-  if (level === "none") {
-    return includesAny(text, [
-      "日语不要求",
-      "日語不要求",
-      "日本語不問",
-      "日本語不要",
-      "不要求日语",
-    ]);
-  }
-
-  if (level === "n3") {
-    return text.includes("n3");
-  }
-
-  if (level === "n2") {
-    return text.includes("n2");
-  }
-
-  return text.includes("n1");
+  return job.japaneseLevel === level;
 }
 
 function hasFeature(
   job: (typeof jobs)[number],
   feature: FeatureFilter
 ) {
-  const text = getJobText(job);
+  switch (feature) {
+    case "verified":
+      return Boolean(job.verified);
 
-  if (feature === "verified") {
-    return job.verified;
+    case "foreigner":
+      return job.foreignerFriendly;
+
+    case "visa":
+      return job.visaSupport;
+
+    case "beginner":
+      return job.beginnerFriendly;
+
+    case "chinese":
+      return job.chineseAvailable;
+
+    default:
+      return false;
   }
-
-  if (feature === "foreigner") {
-    return (
-      Boolean(job.language) ||
-      includesAny(text, [
-        "外国人",
-        "外国籍",
-        "foreigner",
-      ])
-    );
-  }
-
-  if (feature === "visa") {
-    return includesAny(text, [
-      "签证支援",
-      "签证支持",
-      "ビザ支援",
-      "visa support",
-    ]);
-  }
-
-  if (feature === "beginner") {
-    return includesAny(text, [
-      "未经验",
-      "未経験",
-      "経験不問",
-      "无经验",
-      "初心者",
-    ]);
-  }
-
-  return includesAny(text, [
-    "中文",
-    "中国語",
-    "chinese",
-  ]);
-}
-
-function getMaxSalary(
-  salary: string
-) {
-  const numbers =
-    salary
-      .match(/[\d,.]+/g)
-      ?.map((value) =>
-        Number(
-          value
-            .replace(/,/g, "")
-            .replace(/\.$/, "")
-        )
-      )
-      .filter(Number.isFinite) ?? [];
-
-  return numbers.length
-    ? Math.max(...numbers)
-    : 0;
 }
 
 function getCategoryCount(
   category: Exclude<
-    JobCategory,
+    JobCategoryFilter,
     "all"
   >
 ) {
   return jobs.filter(
     (job) =>
-      inferCategory(job) === category
+      job.category === category
   ).length;
 }
 
@@ -973,10 +848,16 @@ export default function JobsPage() {
   const [search, setSearch] =
     useState("");
 
+  const resultsRef =
+    useRef<HTMLDivElement | null>(null);
+
+  const searchRef =
+    useRef<HTMLDivElement | null>(null);
+
   const [
     selectedCategory,
     setSelectedCategory,
-  ] = useState<JobCategory>("all");
+  ] = useState<JobCategoryFilter>("all");
 
   const [
     selectedOccupation,
@@ -1017,21 +898,108 @@ export default function JobsPage() {
   const [savedMessage, setSavedMessage] =
     useState("");
 
-  const [page, setPage] =
-    useState(1);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const pageParam = Number(
+    searchParams.get("page")
+  );
+
+  const page =
+    Number.isInteger(pageParam) &&
+    pageParam > 0
+      ? pageParam
+      : 1;
+
+  function setPage(
+    nextPage:
+      | number
+      | ((value: number) => number)
+  ) {
+    const resolvedPage =
+      typeof nextPage === "function"
+        ? nextPage(page)
+        : nextPage;
+
+    const newPage = Math.max(
+      1,
+      Math.floor(resolvedPage)
+    );
+
+    const params =
+      new URLSearchParams(
+        searchParams.toString()
+      );
+
+    if (newPage === 1) {
+      params.delete("page");
+    } else {
+      params.set(
+        "page",
+        String(newPage)
+      );
+    }
+
+    const query = params.toString();
+
+    router.push(
+      query
+        ? `/jobs?${query}`
+        : "/jobs",
+      {
+        scroll: false,
+      }
+    );
+  }
 
   function resetPage() {
     setPage(1);
   }
 
   function handleSearch() {
-    setSearch(searchInput.trim());
+    const value =
+      searchInput.trim();
+
+    setSelectedCategory("all");
+    setSelectedOccupation("");
+    setEmploymentType("all");
+    setWorkStyle("all");
+    setJapaneseLevel("all");
+    setSalaryType("all");
+    setSearch(value);
     resetPage();
+
+    setSearch(value);
+    resetPage();
+
+    requestAnimationFrame(() => {
+      resultsRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  }
+
+  function handleClearSearch() {
+    setSearchInput("");
+    setSearch("");
+
+    resetPage();
+
+    requestAnimationFrame(() => {
+      resultsRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
   }
 
   function selectCategory(
-    category: JobCategory
+    category: JobCategoryFilter
   ) {
+    setSearch("");
+    setSearchInput("");
+
     setSelectedCategory(category);
     setSelectedOccupation("");
     resetPage();
@@ -1134,15 +1102,23 @@ export default function JobsPage() {
   const filteredJobs = useMemo(() => {
     let result = [...jobs];
 
-    /* Search */
+    /* Keyword search */
 
-    if (search) {
-      const keyword =
-        search.toLowerCase();
+    if (search.trim()) {
+      const searchGroups =
+        getJobSearchGroups(search);
 
-      result = result.filter((job) =>
-        getJobText(job).includes(keyword)
-      );
+      result = result.filter((job) => {
+        const jobText =
+          getJobText(job);
+
+        return searchGroups.every(
+          (group) =>
+            group.some((term) =>
+              jobText.includes(term)
+            )
+        );
+      });
     }
 
     /* Category */
@@ -1152,39 +1128,22 @@ export default function JobsPage() {
     ) {
       result = result.filter(
         (job) =>
-          inferCategory(job) ===
+          job.category ===
           selectedCategory
       );
     }
 
     /* Occupation */
-
-    if (
-      selectedCategory !== "all" &&
-      selectedOccupation
-    ) {
-      const occupation =
-        occupations[
-          selectedCategory
-        ].find(
-          (item) =>
-            item.label ===
-            selectedOccupation
-        );
-
-      if (
-        occupation &&
-        occupation.keywords.length > 0
-      ) {
-        result = result.filter(
-          (job) =>
-            includesAny(
-              getJobText(job),
-              occupation.keywords
-            )
-        );
-      }
-    }
+  if (
+    selectedCategory !== "all" &&
+    selectedOccupation
+  ) {
+    result = result.filter(
+      (job) =>
+        job.occupation ===
+        selectedOccupation
+    );
+  }
 
     /* Region */
 
@@ -1214,25 +1173,42 @@ export default function JobsPage() {
       }
     }
 
-    /* Employment */
+    /* Employment type */
+    if (employmentType !== "all") {
+      const employmentTypeMap: Record<
+        Exclude<EmploymentType, "all">,
+        "正社員" | "契約社員" | "派遣" | "業務委託" | "兼职" | "实习"
+      > = {
+        full_time: "正社員",
+        contract: "契約社員",
+        dispatch: "派遣",
+        freelance: "業務委託",
+        part_time: "兼职",
+        intern: "实习",
+      };
 
-    if (
-      employmentType !== "all"
-    ) {
       result = result.filter(
         (job) =>
-          inferEmploymentType(job) ===
-          employmentType
+          job.employmentType ===
+          employmentTypeMap[employmentType]
       );
     }
 
     /* Work style */
-
     if (workStyle !== "all") {
+      const workStyleMap: Record<
+        Exclude<WorkStyle, "all">,
+        "远程" | "混合" | "现场"
+      > = {
+        remote: "远程",
+        hybrid: "混合",
+        onsite: "现场",
+      };
+
       result = result.filter(
         (job) =>
-          inferWorkStyle(job) ===
-          workStyle
+          job.remote ===
+          workStyleMap[workStyle]
       );
     }
 
@@ -1250,16 +1226,14 @@ export default function JobsPage() {
       );
     }
 
-    /* Salary type */
+  /* Salary type */
 
-    if (salaryType !== "all") {
-      result = result.filter(
-        (job) =>
-          inferSalaryType(
-            job.salary
-          ) === salaryType
-      );
-    }
+  if (salaryType !== "all") {
+    result = result.filter(
+      (job) =>
+        job.salaryType === salaryType
+    );
+  }
 
     /* Features */
 
@@ -1274,11 +1248,22 @@ export default function JobsPage() {
 
     /* Sort */
 
+    if (
+      sort === "recommended" &&
+      search.trim()
+    ) {
+      result =
+        sortJobsBySearchRelevance(
+          result,
+          search
+        );
+    }
+
     if (sort === "salary") {
       result.sort(
         (a, b) =>
-          getMaxSalary(b.salary) -
-          getMaxSalary(a.salary)
+          getMonthlySalaryValue(b) -
+          getMonthlySalaryValue(a)
       );
     }
 
@@ -1470,13 +1455,13 @@ export default function JobsPage() {
                 sm:text-lg
               "
             >
-              IT、建筑、物流、电商、餐饮服务，
+              IT、不动产、建筑、物流、电商、餐饮服务，
               找工作不需要先学会使用复杂的招聘网站。
             </p>
 
             {/* Search */}
 
-            <div className="mt-9 max-w-4xl">
+            <div ref={searchRef} className="mt-9 max-w-4xl">
               <div
                 className="
                   flex
@@ -1736,6 +1721,13 @@ export default function JobsPage() {
                         )}
 
                         {category.key ===
+                          "real-estate" && (
+                          <BriefcaseBusiness
+                            size={19}
+                          />
+                        )}
+
+                        {category.key ===
                           "construction" && (
                           <HardHat
                             size={19}
@@ -1761,6 +1753,21 @@ export default function JobsPage() {
                           <UtensilsCrossed
                             size={19}
                           />
+                        )}
+
+                        {category.key ===
+                          "manufacturing" && (
+                          <Factory size={19} />
+                        )}
+
+                        {category.key ===
+                          "beauty-massage" && (
+                          <Sparkles size={19} />
+                        )}
+
+                        {category.key ===
+                          "care-professional" && (
+                          <HeartHandshake size={19} />
                         )}
 
                         {category.key ===
@@ -2429,7 +2436,8 @@ export default function JobsPage() {
                 sm:justify-between
               "
             >
-              <div>
+              <div id="job-results" ref={resultsRef}  
+                className="scroll-mt-28">
                 <div
                   className="
                     flex
@@ -2594,8 +2602,13 @@ export default function JobsPage() {
                 {currentJobs.map(
                   (job) => (
                     <JobCard
-                      key={job.id}
-                      {...job}
+                    key={job.id}
+                    {...job}
+                    href={
+                      currentPage > 1
+                        ? `/jobs/${job.id}?fromPage=${currentPage}`
+                        : `/jobs/${job.id}`
+                    }
                     />
                   )
                 )}
@@ -2610,8 +2623,9 @@ export default function JobsPage() {
                   border-slate-300
                   bg-white
                   px-6
-                  py-20
+                  py-16
                   text-center
+                  sm:py-20
                 "
               >
                 <div
@@ -2633,41 +2647,87 @@ export default function JobsPage() {
                 <h3
                   className="
                     mt-5
+                    text-lg
                     font-black
                     text-slate-900
                   "
                 >
-                  暂时没有符合条件的职位
+                  {search
+                    ? `没有找到「${search}」相关职位`
+                    : "当前筛选条件下没有相关职位"}
                 </h3>
 
                 <p
                   className="
+                    mx-auto
                     mt-2
+                    max-w-md
                     text-sm
                     leading-6
                     text-slate-500
                   "
                 >
-                  当前 Mock 数据可能还没有这个行业，
-                  可以换一个分类或减少筛选条件。
+                  {search
+                    ? "可以尝试减少搜索关键词，或者调整上方的分类和筛选条件。"
+                    : "可以尝试减少筛选条件，或者切换其他工作分类。"}
                 </p>
 
-                <button
-                  type="button"
-                  onClick={clearFilters}
+                <div
                   className="
-                    mt-5
-                    min-h-11
-                    rounded-xl
-                    bg-slate-950
-                    px-5
-                    text-sm
-                    font-bold
-                    text-white
+                    mt-6
+                    flex
+                    flex-col
+                    items-center
+                    justify-center
+                    gap-3
+                    sm:flex-row
                   "
                 >
-                  查看全部工作
-                </button>
+                  {search && (
+                    <button
+                      type="button"
+                      onClick={handleClearSearch}
+                      className="
+                        min-h-11
+                        w-full
+                        rounded-xl
+                        border
+                        border-slate-200
+                        bg-white
+                        px-5
+                        text-sm
+                        font-bold
+                        text-slate-700
+                        transition
+                        hover:border-slate-300
+                        hover:bg-slate-50
+                        sm:w-auto
+                      "
+                    >
+                      清除搜索
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="
+                      min-h-11
+                      w-full
+                      rounded-xl
+                      bg-slate-950
+                      px-5
+                      text-sm
+                      font-bold
+                      text-white
+                      transition
+                      hover:bg-slate-800
+                      sm:w-auto
+                    "
+                  >
+                    重置全部筛选
+                  </button>
+                </div>
               </div>
             )}
 
@@ -2782,6 +2842,20 @@ export default function JobsPage() {
                 </button>
               </div>
             )}
+            <div className="mt-8 flex justify-center">
+              <button
+                type="button"
+                onClick={() => {
+                  searchRef.current?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                  });
+                }}
+                className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-5 py-2.5 text-sm font-medium text-neutral-600 shadow-sm transition hover:-translate-y-0.5 hover:border-neutral-300 hover:text-neutral-900 hover:shadow-md"
+              >
+                ↑ 返回顶部搜索
+              </button>
+            </div>
           </div>
         </Container>
       </section>

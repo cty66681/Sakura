@@ -1,6 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import {
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ChevronDown,
   Home,
@@ -14,9 +18,34 @@ import {
 import Container from "@/components/layout/Container";
 import HouseCard from "@/components/home/HouseCard";
 
-import { houses } from "@/data/houses";
+import {
+  houses,
+  type HouseFeature,
+} from "@/data/houses";
+
+import {
+  normalizeHouseSearchText,
+  parseHouseSearch,
+} from "@/lib/search/houseSearchDictionary";
+
+import { parseHouseNumericFilters } from "@/lib/search/houseSearchNumericParser";
+
+import {
+  useRouter,
+  useSearchParams,
+} from "next/navigation";
 
 const PAGE_SIZE = 6;
+
+const featureMap: Record<
+  Feature,
+  HouseFeature
+> = {
+  nearStation: "near_station",
+  pet: "pet_allowed",
+  noKeyMoney: "no_key_money",
+  furnished: "furnished",
+};
 
 const regions = [
   "全部地区",
@@ -69,21 +98,6 @@ type Region = (typeof regions)[number];
 type Layout = (typeof layouts)[number];
 type Feature = (typeof features)[number]["key"];
 
-function getRentNumber(rent: string) {
-  return (
-    Number(
-      rent.replace(/[^\d]/g, "")
-    ) || 0
-  );
-}
-
-function getAreaNumber(area: string) {
-  return (
-    Number(
-      area.replace(/[^\d.]/g, "")
-    ) || 0
-  );
-}
 
 /*
 |--------------------------------------------------------------------------
@@ -110,7 +124,195 @@ function getAreaNumber(area: string) {
 |--------------------------------------------------------------------------
 */
 
+  function getHouseSearchMatchScore(
+    house: (typeof houses)[number],
+    search: string
+  ) {
+    if (!search.trim()) {
+      return 0;
+    }
+
+    const groups =
+      parseHouseSearch(search);
+
+    let score = 0;
+
+    const titleText =
+      normalizeHouseSearchText(
+        house.title
+      );
+
+    const locationText =
+      normalizeHouseSearchText(
+        [
+          house.prefecture,
+          house.city,
+          house.location,
+        ].join(" ")
+      );
+
+    const stationText =
+      normalizeHouseSearchText(
+        house.station
+      );
+
+    const layoutText =
+      normalizeHouseSearchText(
+        house.layout
+      );
+
+    const tagsText =
+      normalizeHouseSearchText(
+        house.tags.join(" ")
+      );
+
+    const descriptionText =
+      normalizeHouseSearchText(
+        house.description
+      );
+
+    const companyText =
+      normalizeHouseSearchText(
+        house.company
+      );
+
+    const fullText =
+      normalizeHouseSearchText(
+        [
+          house.title,
+          house.prefecture,
+          house.city,
+          house.station,
+          house.location,
+          house.layout,
+          house.structure,
+          house.direction,
+          house.availableDate,
+          house.company,
+          house.description,
+          ...house.tags,
+        ].join(" ")
+      );
+
+    for (const group of groups) {
+      if (group.type === "feature") {
+        if (
+          house.features.includes(
+            group.key as HouseFeature
+          )
+        ) {
+          score += 70;
+        }
+
+        continue;
+      }
+
+      for (const alias of group.aliases) {
+        if (
+          group.type === "station" &&
+          stationText.includes(alias)
+        ) {
+          score += 100;
+        }
+
+        if (
+          group.type === "location" &&
+          locationText.includes(alias)
+        ) {
+          score += 80;
+        }
+
+        if (
+          group.type === "layout" &&
+          layoutText === alias
+        ) {
+          score += 90;
+        }
+
+        if (
+          titleText.includes(alias)
+        ) {
+          score += 60;
+        }
+
+        if (
+          tagsText.includes(alias)
+        ) {
+          score += 35;
+        }
+
+        if (
+          companyText.includes(alias)
+        ) {
+          score += 10;
+        }
+
+        if (
+          descriptionText.includes(alias)
+        ) {
+          score += 15;
+        }
+
+        if (
+          fullText.includes(alias)
+        ) {
+          score += 5;
+        }
+      }
+    }
+
+    const normalizedSearch =
+      normalizeHouseSearchText(
+        search
+      );
+
+    if (
+      normalizedSearch &&
+      titleText.includes(
+        normalizedSearch
+      )
+    ) {
+      score += 80;
+    }
+
+    return score;
+  }
+
+  function sortHousesBySearchRelevance(
+    list: typeof houses,
+    search: string
+  ) {
+    return [...list].sort(
+      (a, b) =>
+        getHouseSearchMatchScore(
+          b,
+          search
+        ) -
+        getHouseSearchMatchScore(
+          a,
+          search
+        )
+    );
+  }
+
 export default function HousesPage() {
+
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const pageParam = Number(
+    searchParams.get("page")
+  );
+
+  const page =
+    Number.isInteger(pageParam) &&
+    pageParam > 0
+      ? pageParam
+      : 1;
+
+  const searchRef =
+  useRef<HTMLDivElement | null>(null);
+
   const [searchInput, setSearchInput] =
     useState("");
 
@@ -129,8 +331,46 @@ export default function HousesPage() {
   const [sort, setSort] =
     useState("latest");
 
-  const [page, setPage] =
-    useState(1);
+  function setPage(
+      nextPage:
+        | number
+        | ((value: number) => number)
+    ) {
+      const resolvedPage =
+        typeof nextPage === "function"
+          ? nextPage(page)
+          : nextPage;
+
+      const newPage = Math.max(
+        1,
+        Math.floor(resolvedPage)
+      );
+
+      const params =
+        new URLSearchParams(
+          searchParams.toString()
+        );
+
+      if (newPage === 1) {
+        params.delete("page");
+      } else {
+        params.set(
+          "page",
+          String(newPage)
+        );
+      }
+
+      const query = params.toString();
+
+      router.push(
+        query
+          ? `/houses?${query}`
+          : "/houses",
+        {
+          scroll: false,
+        }
+      );
+    }
 
   function resetPage() {
     setPage(1);
@@ -172,32 +412,195 @@ export default function HousesPage() {
   const filteredHouses = useMemo(() => {
     let result = [...houses];
 
-    /* Search */
+  /* Search */
 
-    if (keyword) {
-      const searchKeyword =
-        keyword.toLowerCase();
+  if (keyword) {
+    const parsedSearch =
+      parseHouseSearch(keyword);
 
-      result = result.filter((house) =>
-        [
-          house.title,
-          house.location,
-          house.rent,
-          house.layout,
-          house.area,
-          ...house.tags,
-        ]
-          .join(" ")
-          .toLowerCase()
-          .includes(searchKeyword)
+    const numericFilters =
+      parseHouseNumericFilters(
+        keyword
       );
-    }
+
+    const conceptGroups =
+      parsedSearch.filter(
+        (group) =>
+          group.type !== "literal"
+      );
+
+    const literalGroups =
+    parsedSearch.filter(
+      (group) =>
+        group.type === "literal"
+    );
+
+    result = result.filter(
+      (house) => {
+
+        const houseText =
+          normalizeHouseSearchText(
+            [
+              house.title,
+              house.prefecture,
+              house.city,
+              house.station,
+              house.location,
+              house.layout,
+              house.structure,
+              house.direction,
+              house.availableDate,
+              house.company,
+              house.description,
+              ...house.tags,
+            ].join(" ")
+          );
+        const conceptsMatched =
+          conceptGroups.every(
+            (group) => {
+              if (
+                group.type ===
+                "location"
+              ) {
+                const locationText =
+                  normalizeHouseSearchText(
+                    [
+                      house.prefecture,
+                      house.city,
+                      house.location,
+                    ].join(" ")
+                  );
+
+                return group.aliases.some(
+                  (alias) =>
+                    locationText.includes(
+                      alias
+                    )
+                );
+              }
+
+              if (
+                group.type ===
+                "station"
+              ) {
+                const stationText =
+                  normalizeHouseSearchText(
+                    house.station
+                  );
+
+                return group.aliases.some(
+                  (alias) =>
+                    stationText.includes(
+                      alias
+                    )
+                );
+              }
+
+              if (
+                group.type ===
+                "layout"
+              ) {
+                const layoutText =
+                  normalizeHouseSearchText(
+                    house.layout
+                  );
+
+                return group.aliases.some(
+                  (alias) =>
+                    layoutText === alias
+                );
+              }
+
+              if (
+                group.type ===
+                "feature"
+              ) {
+                return house.features.includes(
+                  group.key as HouseFeature
+                );
+              }
+
+              return true;
+            }
+          );
+
+        if (!conceptsMatched) {
+          return false;
+        }
+
+        const literalsMatched =
+          literalGroups.every(
+            (group) =>
+              group.aliases.some(
+                (alias) =>
+                  houseText.includes(alias)
+              )
+          );
+
+        if (!literalsMatched) {
+          return false;
+        }
+
+        if (
+          numericFilters.rentMin !==
+            undefined &&
+          house.rentValue <
+            numericFilters.rentMin
+        ) {
+          return false;
+        }
+
+        if (
+          numericFilters.rentMax !==
+            undefined &&
+          house.rentValue >
+            numericFilters.rentMax
+        ) {
+          return false;
+        }
+
+        if (
+          numericFilters.areaMin !==
+            undefined &&
+          house.areaValue <
+            numericFilters.areaMin
+        ) {
+          return false;
+        }
+
+        if (
+          numericFilters.areaMax !==
+            undefined &&
+          house.areaValue >
+            numericFilters.areaMax
+        ) {
+          return false;
+        }
+
+        if (
+          numericFilters.walkMinutesMax !==
+          undefined
+        ) {
+          if (
+            house.walkMinutes === null ||
+            house.walkMinutes >
+              numericFilters.walkMinutesMax
+          ) {
+            return false;
+          }
+        }
+
+        return true;
+      }
+    );
+  }
 
     /* Region */
 
     if (region !== "全部地区") {
-      result = result.filter((house) =>
-        house.location.includes(region)
+      result = result.filter(
+        (house) =>
+          house.prefecture === region
       );
     }
 
@@ -218,73 +621,23 @@ export default function HousesPage() {
       }
     }
 
-    /* Near station */
-
-    if (
-      activeFeatures.includes(
-        "nearStation"
-      )
-    ) {
-      result = result.filter((house) =>
-        house.tags.some(
-          (tag) =>
-            tag.includes("近车站") ||
-            tag.includes("车站") ||
-            tag.includes("駅")
-        )
-      );
-    }
-
-    /* Pet */
-
-    if (
-      activeFeatures.includes("pet")
-    ) {
-      result = result.filter((house) =>
-        house.tags.some(
-          (tag) =>
-            tag.includes("宠物") ||
-            tag.includes("ペット")
-        )
-      );
-    }
-
-    /* No key money */
-
-    if (
-      activeFeatures.includes(
-        "noKeyMoney"
-      )
-    ) {
-      result = result.filter(
-        (house) =>
-          house.keyMoney === "0个月" ||
-          house.tags.some((tag) =>
-            tag.includes("免礼金")
-          )
-      );
-    }
-
-    /* Furnished */
-
-    if (
-      activeFeatures.includes(
-        "furnished"
-      )
-    ) {
-      result = result.filter((house) =>
-        house.tags.some(
-          (tag) =>
-            tag.includes("拎包入住") ||
-            tag.includes("家具家电") ||
-            tag.includes("家具")
-        )
-      );
-    }
-
     /* Sort */
 
-    if (sort === "latest") {
+    if (
+      sort === "latest" &&
+      keyword
+    ) {
+      result =
+        sortHousesBySearchRelevance(
+          result,
+          keyword
+        );
+    }
+
+    if (
+      sort === "latest" &&
+      !keyword
+    ) {
       result.sort(
         (a, b) =>
           new Date(
@@ -296,27 +649,43 @@ export default function HousesPage() {
       );
     }
 
+    /* Features */
+
+    activeFeatures.forEach(
+      (feature) => {
+        const houseFeature =
+          featureMap[feature];
+
+        result = result.filter(
+          (house) =>
+            house.features.includes(
+              houseFeature
+            )
+        );
+      }
+    );
+
     if (sort === "rentAsc") {
       result.sort(
         (a, b) =>
-          getRentNumber(a.rent) -
-          getRentNumber(b.rent)
+          a.rentValue -
+          b.rentValue
       );
     }
 
     if (sort === "rentDesc") {
       result.sort(
         (a, b) =>
-          getRentNumber(b.rent) -
-          getRentNumber(a.rent)
+          b.rentValue -
+          a.rentValue
       );
     }
 
     if (sort === "areaDesc") {
       result.sort(
         (a, b) =>
-          getAreaNumber(b.area) -
-          getAreaNumber(a.area)
+          b.areaValue -
+          a.areaValue
       );
     }
 
@@ -486,7 +855,7 @@ export default function HousesPage() {
 
             {/* Search */}
 
-            <div className="mt-10 max-w-4xl">
+            <div ref={searchRef} className="mt-10 max-w-4xl">
               <div
                 className="
                   flex
@@ -993,7 +1362,7 @@ export default function HousesPage() {
             {/* RESULTS */}
             {/* ================================================= */}
 
-            <div className="min-w-0">
+            <div id="house-results" className="min-w-0">
               {/* Top */}
 
               <div
@@ -1220,10 +1589,15 @@ export default function HousesPage() {
                 >
                   {currentHouses.map(
                     (house) => (
-                      <HouseCard
-                        key={house.id}
-                        {...house}
-                      />
+                        <HouseCard
+                          key={house.id}
+                          {...house}
+                          href={
+                            currentPage > 1
+                              ? `/houses/${house.id}?fromPage=${currentPage}`
+                              : `/houses/${house.id}`
+                          }
+                        />
                     )
                   )}
                 </div>
@@ -1407,6 +1781,39 @@ export default function HousesPage() {
               )}
             </div>
           </div>
+            <div className="mt-8 flex justify-center">
+              <button
+                type="button"
+                onClick={() => {
+                  searchRef.current?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                  });
+                }}
+                className="
+                  inline-flex
+                  items-center
+                  gap-2
+                  rounded-full
+                  border
+                  border-slate-200
+                  bg-white
+                  px-5
+                  py-2.5
+                  text-sm
+                  font-medium
+                  text-slate-600
+                  shadow-sm
+                  transition
+                  hover:-translate-y-0.5
+                  hover:border-slate-300
+                  hover:text-slate-900
+                  hover:shadow-md
+                "
+              >
+                ↑ 返回顶部搜索
+              </button>
+            </div>
         </Container>
       </section>
     </main>
