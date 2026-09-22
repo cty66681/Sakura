@@ -1,10 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+
 import {
   ArrowLeft,
   CalendarDays,
+  CircleCheck,
+  CircleOff,
+  Clock3,
   Eye,
   MapPin,
+  PauseCircle,
   ShieldCheck,
 } from "lucide-react";
 
@@ -16,8 +21,13 @@ import HouseTag from "@/components/house/HouseTag";
 import HouseFeature from "@/components/house/HouseFeature";
 import HouseDescription from "@/components/house/HouseDescription";
 import HouseContact from "@/components/house/HouseContact";
+import CommentSection from "@/components/comments/CommentSection";
 
-import { houses } from "@/data/houses";
+import {
+  houses,
+  HOUSE_LISTING_STATUS_LABELS,
+  type HouseListingStatus,
+} from "@/data/houses";
 
 interface PageProps {
   params: Promise<{
@@ -25,7 +35,7 @@ interface PageProps {
   }>;
 
   searchParams: Promise<{
-    fromPage?: string;
+    returnTo?: string;
   }>;
 }
 
@@ -38,14 +48,130 @@ interface PageProps {
 |
 | GET /api/houses/:id
 |
-| 当前阶段：
-| 从 "@/data/houses" Mock 数据读取。
+| 公开接口只返回允许公开的房源资料。
 |
-| 后端接入后：
-| const house = await getHouseById(id);
+| 注意：
+| 正式后端上线以后，不要把完整私人联系方式
+| 直接混在房源公开接口里返回。
 |
 |--------------------------------------------------------------------------
 */
+
+
+function getVerifiedLabel(
+  lastVerifiedAt: string | null
+) {
+  if (!lastVerifiedAt) {
+    return "尚未确认";
+  }
+
+  const verifiedDate = new Date(
+    lastVerifiedAt
+  );
+
+  if (
+    Number.isNaN(
+      verifiedDate.getTime()
+    )
+  ) {
+    return "确认时间未知";
+  }
+
+  return new Intl.DateTimeFormat(
+    "zh-CN",
+    {
+      timeZone: "Asia/Tokyo",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }
+  ).format(verifiedDate);
+}
+
+function formatJapanDateTime(
+  value: string | null
+) {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+
+  if (
+    Number.isNaN(date.getTime())
+  ) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat(
+    "zh-CN",
+    {
+      timeZone: "Asia/Tokyo",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }
+  ).format(date);
+}
+
+function getStatusDescription(
+  status: HouseListingStatus
+) {
+  if (status === "available") {
+    return "当前仍接受咨询和申请。用户提交申请不会改变房源本身的公开状态。";
+  }
+
+  if (status === "paused") {
+    return "发布者暂时停止接受新的申请。房源仍然保留，可以收藏并稍后再次查看。";
+  }
+
+  if (status === "rented") {
+    return "该房源已经确认出租，目前不再接受新的申请。";
+  }
+
+  if (status === "expired") {
+    return "该房源已经超过有效确认期限，需要发布者重新确认后才能恢复正常受理。";
+  }
+
+  return "该房源当前无法公开受理。";
+}
+
+function getStatusClassName(
+  status: HouseListingStatus
+) {
+  if (status === "available") {
+    return `
+      border-emerald-200
+      bg-emerald-50
+      text-emerald-800
+    `;
+  }
+
+  if (status === "paused") {
+    return `
+      border-amber-200
+      bg-amber-50
+      text-amber-800
+    `;
+  }
+
+  if (status === "expired") {
+    return `
+      border-orange-200
+      bg-orange-50
+      text-orange-800
+    `;
+  }
+
+  return `
+    border-slate-200
+    bg-slate-100
+    text-slate-700
+  `;
+}
 
 export default async function HouseDetailPage({
   params,
@@ -53,24 +179,80 @@ export default async function HouseDetailPage({
 }: PageProps) {
   const { id } = await params;
 
-  const { fromPage } =
+  const { returnTo } =
     await searchParams;
 
-  const page = Number(fromPage);
+  const safeReturnTo =
+    returnTo === "/houses" ||
+    returnTo?.startsWith(
+      "/houses?"
+    ) ||
+    returnTo?.startsWith(
+      "/houses#"
+    );
 
   const returnHref =
-    Number.isInteger(page) &&
-    page > 1
-      ? `/houses?page=${page}#house-results`
+    safeReturnTo && returnTo
+      ? returnTo
       : "/houses#house-results";
 
   const house = houses.find(
-    (item) => item.id === Number(id)
+    (item) =>
+      item.id === Number(id)
   );
 
   if (!house) {
     notFound();
   }
+
+  /*
+  |--------------------------------------------------------------------------
+  | 公开访问保护
+  |--------------------------------------------------------------------------
+  |
+  | pending / rejected / hidden 内容
+  | 不应该通过猜 URL 直接访问。
+  |
+  |--------------------------------------------------------------------------
+  */
+
+  if (
+    house.moderationStatus !==
+      "approved" ||
+    house.listingStatus ===
+      "hidden"
+  ) {
+    notFound();
+  }
+
+  const listingStatus =
+    house.listingStatus;
+
+  const verifiedLabel =
+    getVerifiedLabel(
+      house.lastVerifiedAt
+    );
+
+  const verifiedDate =
+    formatJapanDateTime(
+      house.lastVerifiedAt
+    );
+
+  const foreignerText =
+    house.foreignerAllowed === true
+      ? "可以入住"
+      : house.foreignerAllowed ===
+          false
+        ? "不可入住"
+        : "条件待确认";
+
+  const studentText =
+    house.studentAllowed === true
+      ? "可以入住"
+      : house.studentAllowed ===
+          false
+        ? "不可入住"
+        : "条件待确认";
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -141,9 +323,12 @@ export default async function HouseDetailPage({
                   gap-1.5
                 "
               >
-                <CalendarDays size={14} />
+                <CalendarDays
+                  size={14}
+                />
 
-                发布于 {house.publishTime}
+                发布于{" "}
+                {house.publishTime}
               </div>
 
               <div
@@ -158,6 +343,131 @@ export default async function HouseDetailPage({
                 {house.views} 次浏览
               </div>
             </div>
+
+            {/* ================================================= */}
+            {/* STATUS */}
+            {/* ================================================= */}
+
+            <div
+              className={`
+                mt-5
+                rounded-2xl
+                border
+                px-4
+                py-4
+                ${getStatusClassName(
+                  listingStatus
+                )}
+              `}
+            >
+              <div
+                className="
+                  flex
+                  flex-col
+                  gap-3
+                  sm:flex-row
+                  sm:items-start
+                  sm:justify-between
+                "
+              >
+                <div
+                  className="
+                    flex
+                    items-start
+                    gap-3
+                  "
+                >
+                  <div className="mt-0.5 shrink-0">
+                    {listingStatus ===
+                      "available" && (
+                      <CircleCheck
+                        size={20}
+                      />
+                    )}
+
+                    {listingStatus ===
+                      "paused" && (
+                      <PauseCircle
+                        size={20}
+                      />
+                    )}
+
+                    {listingStatus ===
+                      "rented" && (
+                      <CircleOff
+                        size={20}
+                      />
+                    )}
+
+                    {listingStatus ===
+                      "expired" && (
+                      <Clock3
+                        size={20}
+                      />
+                    )}
+                  </div>
+
+                  <div>
+                    <p
+                      className="
+                        text-sm
+                        font-black
+                      "
+                    >
+                      {
+                        HOUSE_LISTING_STATUS_LABELS[
+                          listingStatus
+                        ]
+                      }
+                    </p>
+
+                    <p
+                      className="
+                        mt-1
+                        text-xs
+                        leading-5
+                        opacity-80
+                      "
+                    >
+                      {getStatusDescription(
+                        listingStatus
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                <div
+                  className="
+                    flex
+                    shrink-0
+                    items-center
+                    gap-1.5
+                    text-xs
+                    font-bold
+                  "
+                >
+                  <Clock3 size={14} />
+
+                  {verifiedLabel}
+                </div>
+              </div>
+
+              {verifiedDate && (
+                <p
+                  className="
+                    mt-3
+                    border-t
+                    border-current/10
+                    pt-3
+                    text-xs
+                    opacity-70
+                  "
+                >
+                  最后确认：
+                  {verifiedDate}
+                </p>
+              )}
+            </div>
           </div>
         </Container>
       </section>
@@ -168,13 +478,9 @@ export default async function HouseDetailPage({
 
       <section className="py-8 sm:py-10">
         <Container>
-          {/* Gallery */}
-
           <HouseGallery
             images={house.images}
           />
-
-          {/* Main layout */}
 
           <div
             className="
@@ -196,12 +502,18 @@ export default async function HouseDetailPage({
               <HousePrice
                 title={house.title}
                 rent={house.rent}
-                location={house.location}
+                location={
+                  house.location
+                }
                 managementFee={
                   house.managementFee
                 }
-                deposit={house.deposit}
-                keyMoney={house.keyMoney}
+                deposit={
+                  house.deposit
+                }
+                keyMoney={
+                  house.keyMoney
+                }
               />
 
               <HouseTag
@@ -224,8 +536,12 @@ export default async function HouseDetailPage({
                 managementFee={
                   house.managementFee
                 }
-                deposit={house.deposit}
-                keyMoney={house.keyMoney}
+                deposit={
+                  house.deposit
+                }
+                keyMoney={
+                  house.keyMoney
+                }
                 availableDate={
                   house.availableDate
                 }
@@ -240,6 +556,11 @@ export default async function HouseDetailPage({
                   house.description
                 }
               />
+
+              <CommentSection
+                contentType="house"
+                contentId={house.id}
+              />
             </div>
 
             {/* RIGHT */}
@@ -252,10 +573,16 @@ export default async function HouseDetailPage({
               "
             >
               <HouseContact
-                name={house.contactName}
-                company={house.company}
-                phone={house.phone}
-                email={house.email}
+                houseId={house.id}
+                publisherId={house.publisherId}
+                houseTitle={house.title}
+                rent={house.rent}
+                location={house.location}
+                layout={house.layout}
+                area={house.area}
+                station={house.station}
+                walkMinutes={house.walkMinutes}
+                listingStatus={listingStatus}
               />
 
               {/* Summary */}
@@ -294,6 +621,15 @@ export default async function HouseDetailPage({
 
                 <div className="mt-5 space-y-4">
                   <SummaryRow
+                    label="当前状态"
+                    value={
+                      HOUSE_LISTING_STATUS_LABELS[
+                        listingStatus
+                      ]
+                    }
+                  />
+
+                  <SummaryRow
                     label="月租"
                     value={house.rent}
                     strong
@@ -301,7 +637,9 @@ export default async function HouseDetailPage({
 
                   <SummaryRow
                     label="户型"
-                    value={house.layout}
+                    value={
+                      house.layout
+                    }
                   />
 
                   <SummaryRow
@@ -318,18 +656,43 @@ export default async function HouseDetailPage({
 
                   <SummaryRow
                     label="押金"
-                    value={house.deposit}
+                    value={
+                      house.deposit
+                    }
                   />
 
                   <SummaryRow
                     label="礼金"
-                    value={house.keyMoney}
+                    value={
+                      house.keyMoney
+                    }
+                  />
+
+                  <SummaryRow
+                    label="外国人入住"
+                    value={
+                      foreignerText
+                    }
+                  />
+
+                  <SummaryRow
+                    label="学生入住"
+                    value={
+                      studentText
+                    }
                   />
 
                   <SummaryRow
                     label="入住时间"
                     value={
                       house.availableDate
+                    }
+                  />
+
+                  <SummaryRow
+                    label="最后确认"
+                    value={
+                      verifiedLabel
                     }
                   />
                 </div>
@@ -354,7 +717,9 @@ export default async function HouseDetailPage({
                     text-amber-800
                   "
                 >
-                  <ShieldCheck size={18} />
+                  <ShieldCheck
+                    size={18}
+                  />
 
                   <h3
                     className="

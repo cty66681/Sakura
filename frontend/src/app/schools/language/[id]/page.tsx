@@ -460,10 +460,29 @@ const schools: LanguageSchoolDetail[] = [
 
 export default async function LanguageSchoolDetailPage({
   params,
+  searchParams,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{
+    id: string;
+  }>;
+
+  searchParams: Promise<{
+    returnTo?: string;
+  }>;
 }) {
   const { id } = await params;
+
+  const {
+    returnTo,
+  } = await searchParams;
+
+  const returnHref =
+    returnTo &&
+    returnTo.startsWith(
+      "/schools/language"
+    )
+      ? returnTo
+      : "/schools/language";
 
   /*
   |--------------------------------------------------------------------------
@@ -501,6 +520,7 @@ export default async function LanguageSchoolDetailPage({
 
       <LanguageSchoolHeader
         school={school}
+        returnHref={returnHref}
       />
 
       <Container>

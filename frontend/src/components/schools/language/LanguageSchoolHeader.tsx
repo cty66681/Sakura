@@ -1,6 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -36,6 +40,7 @@ export type LanguageSchoolHeaderData = {
 
 interface Props {
   school: LanguageSchoolHeaderData;
+  returnHref?: string;
 }
 
 const FAVORITE_KEY = "sakura-language-school-favorites";
@@ -43,78 +48,93 @@ const FAVORITE_EVENT = "sakura-language-school-favorite-change";
 
 export default function LanguageSchoolHeader({
   school,
+  returnHref = "/schools/language",
 }: Props) {
-  const [favorite, setFavorite] = useState(false);
-  const [copied, setCopied] = useState(false);
+  
+  const subscribeFavorite =
+  useCallback(
+    (
+      onStoreChange: () => void
+    ) => {
+      const handleFavoriteChange =
+        () => {
+          onStoreChange();
+        };
 
-  /*
-  |--------------------------------------------------------------------------
-  | TODO [API - GET]
-  |--------------------------------------------------------------------------
-  |
-  | 登录系统完成后：
-  |
-  | GET /api/users/me/favorites/language-schools
-  |
-  | 用于取得当前用户收藏的语言学校。
-  |
-  | 现在暂时使用 localStorage。
-  |
-  |--------------------------------------------------------------------------
-  */
+      const handleStorage = (
+        event: StorageEvent
+      ) => {
+        if (
+          event.key ===
+          FAVORITE_KEY
+        ) {
+          onStoreChange();
+        }
+      };
 
-  const syncFavorite = useCallback(() => {
-    try {
-      const saved = localStorage.getItem(FAVORITE_KEY);
-
-      if (!saved) {
-        setFavorite(false);
-        return;
-      }
-
-      const favorites: string[] = JSON.parse(saved);
-
-      setFavorite(favorites.includes(school.id));
-    } catch {
-      setFavorite(false);
-    }
-  }, [school.id]);
-
-  useEffect(() => {
-    syncFavorite();
-
-    const handleFavoriteChange = () => {
-      syncFavorite();
-    };
-
-    const handleStorage = (event: StorageEvent) => {
-      if (event.key === FAVORITE_KEY) {
-        syncFavorite();
-      }
-    };
-
-    window.addEventListener(
-      FAVORITE_EVENT,
-      handleFavoriteChange
-    );
-
-    window.addEventListener(
-      "storage",
-      handleStorage
-    );
-
-    return () => {
-      window.removeEventListener(
+      window.addEventListener(
         FAVORITE_EVENT,
         handleFavoriteChange
       );
 
-      window.removeEventListener(
+      window.addEventListener(
         "storage",
         handleStorage
       );
-    };
-  }, [syncFavorite]);
+
+      return () => {
+        window.removeEventListener(
+          FAVORITE_EVENT,
+          handleFavoriteChange
+        );
+
+        window.removeEventListener(
+          "storage",
+          handleStorage
+        );
+      };
+    },
+    []
+  );
+
+const getFavoriteSnapshot =
+  useCallback(() => {
+    try {
+      const saved =
+        localStorage.getItem(
+          FAVORITE_KEY
+        );
+
+      if (!saved) {
+        return false;
+      }
+
+      const favorites: string[] =
+        JSON.parse(saved);
+
+      return favorites.includes(
+        school.id
+      );
+    } catch {
+      return false;
+    }
+  }, [school.id]);
+
+const getFavoriteServerSnapshot =
+  useCallback(
+    () => false,
+    []
+  );
+
+const favorite =
+  useSyncExternalStore(
+    subscribeFavorite,
+    getFavoriteSnapshot,
+    getFavoriteServerSnapshot
+  );
+
+const [copied, setCopied] =
+  useState(false);
 
   const handleFavorite = () => {
     /*
@@ -159,8 +179,6 @@ export default function LanguageSchoolHeader({
         school.id
       );
 
-      setFavorite(nextFavorite);
-
       window.dispatchEvent(
         new CustomEvent(FAVORITE_EVENT, {
           detail: {
@@ -170,7 +188,7 @@ export default function LanguageSchoolHeader({
         })
       );
     } catch {
-      setFavorite((value) => !value);
+      return;
     }
   };
 
@@ -278,7 +296,7 @@ export default function LanguageSchoolHeader({
           {/* 返回 */}
 
           <Link
-            href="/schools/language"
+            href={returnHref}
             className="
               inline-flex
               items-center

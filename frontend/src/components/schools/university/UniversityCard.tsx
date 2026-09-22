@@ -1,6 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useSyncExternalStore,
+} from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -23,6 +26,7 @@ type Props = {
   eju: boolean;
   rating: number;
   tags: string[];
+  href?: string;
 };
 
 const FAVORITE_KEY = "sakura-university-favorites";
@@ -42,85 +46,92 @@ export default function UniversityCard({
   eju,
   rating,
   tags,
+  href,
 }: Props) {
-  const [favorite, setFavorite] = useState(false);
 
-  /* =========================================================
-     从 localStorage 读取当前收藏状态
-  ========================================================= */
+  const detailHref =
+  href ??
+  `/schools/university/${id}`;
+  
+  const subscribeFavorite =
+  useCallback(
+    (
+      onStoreChange: () => void
+    ) => {
+      const handleFavoriteChange =
+        () => {
+          onStoreChange();
+        };
 
-  const syncFavorite = useCallback(() => {
+      const handleStorage = (
+        event: StorageEvent
+      ) => {
+        if (
+          event.key ===
+          FAVORITE_KEY
+        ) {
+          onStoreChange();
+        }
+      };
+
+      window.addEventListener(
+        FAVORITE_EVENT,
+        handleFavoriteChange
+      );
+
+      window.addEventListener(
+        "storage",
+        handleStorage
+      );
+
+      return () => {
+        window.removeEventListener(
+          FAVORITE_EVENT,
+          handleFavoriteChange
+        );
+
+        window.removeEventListener(
+          "storage",
+          handleStorage
+        );
+      };
+    },
+    []
+  );
+
+const getFavoriteSnapshot =
+  useCallback(() => {
     try {
       const saved =
-        localStorage.getItem(FAVORITE_KEY);
+        localStorage.getItem(
+          FAVORITE_KEY
+        );
 
       if (!saved) {
-        setFavorite(false);
-        return;
+        return false;
       }
 
       const favorites: string[] =
         JSON.parse(saved);
 
-      setFavorite(
-        favorites.includes(id)
-      );
+      return favorites.includes(id);
     } catch {
-      setFavorite(false);
+      return false;
     }
   }, [id]);
 
-  /* =========================================================
-     初始化 + 实时同步
-  ========================================================= */
+const getFavoriteServerSnapshot =
+  useCallback(
+    () => false,
+    []
+  );
 
-  useEffect(() => {
-    syncFavorite();
-
-    /*
-      同一个页面 / 同一个标签页中的组件同步
-    */
-
-    const handleFavoriteChange = () => {
-      syncFavorite();
-    };
-
-    /*
-      不同浏览器标签页之间同步
-    */
-
-    const handleStorage = (
-      event: StorageEvent
-    ) => {
-      if (
-        event.key === FAVORITE_KEY
-      ) {
-        syncFavorite();
-      }
-    };
-
-    window.addEventListener(
-      FAVORITE_EVENT,
-      handleFavoriteChange
-    );
-
-    window.addEventListener(
-      "storage",
-      handleStorage
-    );
-
-    return () => {
-      window.removeEventListener(
-        FAVORITE_EVENT,
-        handleFavoriteChange
-      );
-
-      window.removeEventListener(
-        "storage",
-        handleStorage
-      );
-    };
-  }, [syncFavorite]);
+const favorite =
+  useSyncExternalStore(
+    subscribeFavorite,
+    getFavoriteSnapshot,
+    getFavoriteServerSnapshot
+  );
 
   /* =========================================================
      收藏 / 取消收藏
@@ -170,9 +181,7 @@ export default function UniversityCard({
         )
       );
     } catch {
-      setFavorite(
-        (current) => !current
-      );
+      return;
     }
   };
 
@@ -200,7 +209,7 @@ export default function UniversityCard({
         {/* 图片 */}
 
         <Link
-          href={`/schools/university/${id}`}
+          href={detailHref}
           className="
             relative
             block
@@ -307,7 +316,7 @@ export default function UniversityCard({
 
           <div className="pr-14">
             <Link
-              href={`/schools/university/${id}`}
+              href={detailHref}
               className="
                 inline-block
                 text-2xl
@@ -450,7 +459,7 @@ export default function UniversityCard({
             </div>
 
             <Link
-              href={`/schools/university/${id}`}
+              href={detailHref}
               className="
                 inline-flex
                 items-center

@@ -18,6 +18,10 @@ import {
 } from "next/navigation";
 
 import Container from "@/components/layout/Container";
+import {
+  normalizeLanguageSchoolSearchText,
+  parseLanguageSchoolSearch,
+} from "@/lib/search/languageSchoolSearchDictionary";
 
 interface LanguageSchool {
   id: number;
@@ -398,6 +402,141 @@ const supportOptions = [
 
 const PAGE_SIZE = 6;
 
+function getLanguageSchoolSearchScore(
+  school: (typeof schools)[number],
+  search: string
+) {
+  if (!search.trim()) {
+    return 0;
+  }
+
+  const groups =
+    parseLanguageSchoolSearch(
+      search
+    );
+
+  const nameText =
+    normalizeLanguageSchoolSearchText(
+      school.name
+    );
+
+  const locationText =
+    normalizeLanguageSchoolSearchText(
+      [
+        school.prefecture,
+        school.city,
+      ].join(" ")
+    );
+
+  const typeText =
+    normalizeLanguageSchoolSearchText(
+      school.type
+    );
+
+  const tagText =
+    normalizeLanguageSchoolSearchText(
+      school.tags.join(" ")
+    );
+
+  const fullText =
+    normalizeLanguageSchoolSearchText(
+      [
+        school.name,
+        school.prefecture,
+        school.city,
+        school.type,
+        ...school.tags,
+      ].join(" ")
+    );
+
+  let score = 0;
+
+  for (const group of groups) {
+    if (group.type === "location") {
+      if (
+        group.aliases.some((alias) =>
+          locationText.includes(alias)
+        )
+      ) {
+        score += 70;
+      }
+
+      continue;
+    }
+
+    if (group.type === "type") {
+      if (
+        group.aliases.some((alias) =>
+          typeText.includes(alias)
+        )
+      ) {
+        score += 60;
+      }
+
+      continue;
+    }
+
+    if (group.type === "support") {
+      score += 65;
+      continue;
+    }
+
+    if (group.type === "condition") {
+      score += 45;
+      continue;
+    }
+
+    if (group.type === "literal") {
+      for (const alias of group.aliases) {
+        if (nameText.includes(alias)) {
+          score += 120;
+        } else if (
+          tagText.includes(alias)
+        ) {
+          score += 35;
+        } else if (
+          fullText.includes(alias)
+        ) {
+          score += 15;
+        }
+      }
+    }
+  }
+
+  const normalizedSearch =
+    normalizeLanguageSchoolSearchText(
+      search
+    );
+
+  if (
+    normalizedSearch &&
+    nameText.includes(
+      normalizedSearch
+    )
+  ) {
+    score += 150;
+  }
+
+  return score;
+}
+
+function sortLanguageSchoolsBySearchRelevance(
+  list: typeof schools,
+  search: string
+) {
+  return [...list].sort(
+    (a, b) =>
+      getLanguageSchoolSearchScore(
+        b,
+        search
+      ) -
+      getLanguageSchoolSearchScore(
+        a,
+        search
+      )
+  );
+}
+
 export default function LanguageSchoolPage() {
   return (
     <Suspense fallback={<LanguageSchoolLoading />}>
@@ -466,25 +605,6 @@ function LanguageSchoolPageContent() {
       ? Math.floor(rawPage)
       : 1;
 
-  const [
-    searchInput,
-    setSearchInput,
-  ] = useState(keyword);
-
-  const searchParamsString =
-    searchParams.toString();
-
-  useEffect(() => {
-    const params =
-      new URLSearchParams(
-        searchParamsString
-      );
-
-    setSearchInput(
-      params.get("q") ?? ""
-    );
-  }, [searchParamsString]);
-
   const updateQuery = useCallback(
     (
       updates: Record<
@@ -543,26 +663,17 @@ function LanguageSchoolPageContent() {
      搜索
   ========================================================= */
 
-  const handleSearch = () => {
+  const handleSearch = (
+    value: string
+  ) => {
     updateQuery({
       q:
-        searchInput.trim() ||
-        null,
+        value || null,
       page: null,
     });
   };
 
-  const handleSearchKeyDown = (
-    event: KeyboardEvent<HTMLInputElement>
-  ) => {
-    if (event.key === "Enter") {
-      handleSearch();
-    }
-  };
-
   const clearSearch = () => {
-    setSearchInput("");
-
     updateQuery({
       q: null,
       page: null,
@@ -656,8 +767,6 @@ function LanguageSchoolPageContent() {
   };
 
   const clearAllFilters = () => {
-    setSearchInput("");
-
     router.replace(
       pathname,
       {
@@ -666,6 +775,16 @@ function LanguageSchoolPageContent() {
     );
   };
 
+
+  const searchParamsString =
+  searchParams.toString();
+
+  const currentListUrl =
+    `${pathname}${
+      searchParamsString
+        ? `?${searchParamsString}`
+        : ""
+    }#language-results`;
   /* =========================================================
      FILTER DATA
   ========================================================= */
@@ -674,25 +793,195 @@ function LanguageSchoolPageContent() {
     let result = [...schools];
 
     if (keyword.trim()) {
-      const normalizedKeyword =
-        keyword
-          .trim()
-          .toLowerCase();
+      const searchGroups =
+        parseLanguageSchoolSearch(
+          keyword
+        );
 
       result = result.filter(
-        (school) =>
-          [
-            school.name,
-            school.prefecture,
-            school.city,
-            school.type,
-            ...school.tags,
-          ]
-            .join(" ")
-            .toLowerCase()
-            .includes(
-              normalizedKeyword
-            )
+        (school) => {
+          const schoolText =
+            normalizeLanguageSchoolSearchText(
+              [
+                school.name,
+                school.prefecture,
+                school.city,
+                school.type,
+                ...school.tags,
+              ].join(" ")
+            );
+
+          return searchGroups.every(
+            (group) => {
+              /* 地区 */
+
+              if (
+                group.type ===
+                "location"
+              ) {
+                const locationText =
+                  normalizeLanguageSchoolSearchText(
+                    [
+                      school.prefecture,
+                      school.city,
+                    ].join(" ")
+                  );
+
+                return group.aliases.some(
+                  (alias) =>
+                    locationText.includes(
+                      alias
+                    )
+                );
+              }
+
+              /* 学校方向 */
+
+              if (
+                group.type === "type"
+              ) {
+                if (
+                  group.key ===
+                  "advancement"
+                ) {
+                  return (
+                    school.type ===
+                    "升学型"
+                  );
+                }
+
+                if (
+                  group.key ===
+                  "general"
+                ) {
+                  return (
+                    school.type ===
+                    "综合型"
+                  );
+                }
+
+                if (
+                  group.key ===
+                  "employment"
+                ) {
+                  return (
+                    school.type ===
+                    "就业型"
+                  );
+                }
+
+                return false;
+              }
+
+              /* 留学生支持 */
+
+              if (
+                group.type ===
+                "support"
+              ) {
+                if (
+                  group.key ===
+                  "chinese"
+                ) {
+                  return school.chineseSupport;
+                }
+
+                if (
+                  group.key ===
+                  "university"
+                ) {
+                  return school.universitySupport;
+                }
+
+                if (
+                  group.key ===
+                  "graduate"
+                ) {
+                  return school.graduateSupport;
+                }
+
+                if (
+                  group.key === "visa"
+                ) {
+                  return school.visaSupport;
+                }
+
+                if (
+                  group.key ===
+                  "international-student"
+                ) {
+                  return (
+                    school.foreignerRating >=
+                      4.7 ||
+                    school.tags.some(
+                      (tag) =>
+                        tag.includes(
+                          "留学生"
+                        )
+                    )
+                  );
+                }
+
+                return false;
+              }
+
+              /* 条件 */
+
+              if (
+                group.type ===
+                "condition"
+              ) {
+                if (
+                  group.key === "cheap"
+                ) {
+                  return (
+                    school.tuition <=
+                    700000
+                  );
+                }
+
+                if (
+                  group.key === "safe"
+                ) {
+                  return (
+                    school.risk ===
+                    "低风险"
+                  );
+                }
+
+                if (
+                  group.key ===
+                  "scholarship"
+                ) {
+                  return school.tags.some(
+                    (tag) =>
+                      tag.includes(
+                        "奖学金"
+                      )
+                  );
+                }
+
+                return false;
+              }
+
+              /* 普通自由词 */
+
+              if (
+                group.type ===
+                "literal"
+              ) {
+                return group.aliases.some(
+                  (alias) =>
+                    schoolText.includes(
+                      alias
+                    )
+                );
+              }
+
+              return true;
+            }
+          );
+        }
       );
     }
 
@@ -812,6 +1101,17 @@ function LanguageSchoolPageContent() {
           school.risk ===
           "低风险"
       );
+    }
+
+    if (
+      sort === "recommended" &&
+      keyword.trim()
+    ) {
+      result =
+        sortLanguageSchoolsBySearchRelevance(
+          result,
+          keyword
+        );
     }
 
     if (sort === "rating") {
@@ -977,51 +1277,12 @@ function LanguageSchoolPageContent() {
             {/* Search */}
 
             <div className="mt-10 max-w-3xl">
-              <div className="flex overflow-hidden rounded-2xl bg-white shadow-2xl">
-                <div className="flex flex-1 items-center">
-                  <span className="px-4 text-xl">
-                    🔍
-                  </span>
-
-                  <input
-                    value={
-                      searchInput
-                    }
-                    onChange={(e) =>
-                      setSearchInput(
-                        e.target.value
-                      )
-                    }
-                    onKeyDown={
-                      handleSearchKeyDown
-                    }
-                    placeholder="搜索学校、都道府县、城市、升学方向..."
-                    className="w-full bg-transparent py-4 pr-4 text-sm text-slate-900 outline-none"
-                  />
-
-                  {searchInput && (
-                    <button
-                      type="button"
-                      onClick={
-                        clearSearch
-                      }
-                      className="mr-2 rounded-lg px-3 py-2 text-sm text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={
-                    handleSearch
-                  }
-                  className="bg-emerald-500 px-7 text-sm font-semibold text-white transition hover:bg-emerald-600"
-                >
-                  搜索
-                </button>
-              </div>
+              <LanguageSchoolSearchBox
+                key={keyword}
+                initialValue={keyword}
+                onSearch={handleSearch}
+                onClear={clearSearch}
+              />
             </div>
           </div>
         </Container>
@@ -1396,7 +1657,9 @@ function LanguageSchoolPageContent() {
                           key={
                             school.id
                           }
-                          href={`/schools/language/${school.id}`}
+                          href={`/schools/language/${school.id}?returnTo=${encodeURIComponent(
+                            currentListUrl
+                          )}`}
                           className="group block rounded-2xl border border-slate-200 bg-white p-6 transition hover:-translate-y-1 hover:border-emerald-200 hover:shadow-xl"
                         >
                           <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
@@ -1642,5 +1905,69 @@ function LanguageSchoolLoading() {
         </div>
       </Container>
     </main>
+  );
+}
+
+function LanguageSchoolSearchBox({
+  initialValue,
+  onSearch,
+  onClear,
+}: {
+  initialValue: string;
+  onSearch: (value: string) => void;
+  onClear: () => void;
+}) {
+  const [value, setValue] =
+    useState(initialValue);
+
+  const handleSubmit = () => {
+    onSearch(value.trim());
+  };
+
+  return (
+    <div className="flex overflow-hidden rounded-2xl bg-white shadow-2xl">
+      <div className="flex flex-1 items-center">
+        <span className="px-4 text-xl">
+          🔍
+        </span>
+
+        <input
+          value={value}
+          onChange={(e) =>
+            setValue(e.target.value)
+          }
+          onKeyDown={(event) => {
+            if (
+              event.key === "Enter"
+            ) {
+              handleSubmit();
+            }
+          }}
+          placeholder="搜索学校、都道府县、城市、升学方向..."
+          className="w-full bg-transparent py-4 pr-4 text-sm text-slate-900 outline-none"
+        />
+
+        {value && (
+          <button
+            type="button"
+            onClick={() => {
+              setValue("");
+              onClear();
+            }}
+            className="mr-2 rounded-lg px-3 py-2 text-sm text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+
+      <button
+        type="button"
+        onClick={handleSubmit}
+        className="bg-emerald-500 px-7 text-sm font-semibold text-white transition hover:bg-emerald-600"
+      >
+        搜索
+      </button>
+    </div>
   );
 }

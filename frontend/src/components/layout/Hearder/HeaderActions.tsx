@@ -7,7 +7,11 @@ import {
   useRef,
   useState,
 } from "react";
-import { useRouter } from "next/navigation";
+
+import {
+  usePathname,
+  useRouter,
+} from "next/navigation";
 
 import Avatar from "@/components/ui/Avatar";
 import MobileMenu from "./MobileMenu";
@@ -15,6 +19,7 @@ import MobileMenu from "./MobileMenu";
 import {
   Bell,
   Bookmark,
+  MessageCircle,
   Check,
   ChevronDown,
   FileText,
@@ -79,6 +84,11 @@ const notifications: NotificationItem[] = [
 
 export default function HeaderActions() {
   const router = useRouter();
+  const pathname = usePathname();
+
+  const messagesActive =
+    pathname === "/messages" ||
+    pathname.startsWith("/messages/");
 
   const wrapperRef =
     useRef<HTMLDivElement>(null);
@@ -372,6 +382,40 @@ export default function HeaderActions() {
           />
         )}
       </div>
+
+      {/* Messages */}
+      <Link
+        href="/messages"
+        onClick={() =>
+          setOpenMenu(null)
+        }
+        aria-label="聊天"
+        className={`
+          relative
+          h-11
+          items-center
+          justify-center
+          gap-2
+          rounded-xl
+          px-3
+          text-sm
+          font-black
+          transition
+          flex
+
+          ${
+            messagesActive
+              ? "bg-blue-50 text-blue-700"
+              : "text-slate-700 hover:bg-slate-100 hover:text-slate-950"
+          }
+        `}
+      >
+        <MessageCircle size={20} />
+
+        <span className="hidden xl:inline">
+          聊天
+        </span>
+      </Link>
 
       {/* Publish */}
 

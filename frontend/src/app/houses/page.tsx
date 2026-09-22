@@ -1,9 +1,7 @@
 "use client";
 
 import {
-  useMemo,
   useRef,
-  useState,
 } from "react";
 import {
   ChevronDown,
@@ -24,11 +22,21 @@ import {
 } from "@/data/houses";
 
 import {
+  getPublisherById,
+} from "@/data/publishers";
+
+import {
   normalizeHouseSearchText,
   parseHouseSearch,
 } from "@/lib/search/houseSearchDictionary";
 
 import { parseHouseNumericFilters } from "@/lib/search/houseSearchNumericParser";
+
+import {
+  parseHouseSearchIntent,
+  removeHouseSearchIntentText,
+} from "@/lib/search/houseSearchIntentParser";
+
 
 import {
   useRouter,
@@ -37,15 +45,6 @@ import {
 
 const PAGE_SIZE = 6;
 
-const featureMap: Record<
-  Feature,
-  HouseFeature
-> = {
-  nearStation: "near_station",
-  pet: "pet_allowed",
-  noKeyMoney: "no_key_money",
-  furnished: "furnished",
-};
 
 const regions = [
   "全部地区",
@@ -68,22 +67,25 @@ const layouts = [
 
 const features = [
   {
-    key: "nearStation",
+    key: "near_station",
     label: "近车站",
   },
   {
-    key: "pet",
+    key: "pet_allowed",
     label: "可养宠物",
   },
   {
-    key: "noKeyMoney",
+    key: "no_key_money",
     label: "免礼金",
   },
   {
     key: "furnished",
     label: "拎包入住",
   },
-] as const;
+] as const satisfies readonly {
+  key: HouseFeature;
+  label: string;
+}[];
 
 const hotKeywords = [
   "池袋",
@@ -97,6 +99,15 @@ const hotKeywords = [
 type Region = (typeof regions)[number];
 type Layout = (typeof layouts)[number];
 type Feature = (typeof features)[number]["key"];
+const sortValues = [
+  "latest",
+  "rent-asc",
+  "rent-desc",
+  "area-desc",
+] as const;
+
+type SortValue =
+  (typeof sortValues)[number];
 
 
 /*
@@ -132,8 +143,20 @@ type Feature = (typeof features)[number]["key"];
       return 0;
     }
 
+    const intent =
+      parseHouseSearchIntent(
+        search
+      );
+
+    const semanticSearch =
+      removeHouseSearchIntentText(
+        search
+      );
+
     const groups =
-      parseHouseSearch(search);
+      parseHouseSearch(
+        semanticSearch
+      );
 
     let score = 0;
 
@@ -167,16 +190,21 @@ type Feature = (typeof features)[number]["key"];
       );
 
     const descriptionText =
-      normalizeHouseSearchText(
-        house.description
-      );
+    normalizeHouseSearchText(
+      house.description
+    );
+
+    const publisherCompany =
+      getPublisherById(
+        house.publisherId
+      )?.company ?? "";
 
     const companyText =
       normalizeHouseSearchText(
-        house.company
+        publisherCompany
       );
 
-    const fullText =
+  const fullText =
       normalizeHouseSearchText(
         [
           house.title,
@@ -188,14 +216,44 @@ type Feature = (typeof features)[number]["key"];
           house.structure,
           house.direction,
           house.availableDate,
-          house.company,
+          publisherCompany,
           house.description,
           ...house.tags,
         ].join(" ")
       );
 
     for (const group of groups) {
-      if (group.type === "feature") {
+      if (
+        group.type === "feature"
+      ) {
+        if (
+          group.key ===
+          "foreigner_friendly"
+        ) {
+          if (
+            house.foreignerAllowed ===
+            true
+          ) {
+            score += 70;
+          }
+
+          continue;
+        }
+
+        if (
+          group.key ===
+          "student_allowed"
+        ) {
+          if (
+            house.studentAllowed ===
+            true
+          ) {
+            score += 70;
+          }
+
+          continue;
+        }
+
         if (
           house.features.includes(
             group.key as HouseFeature
@@ -275,6 +333,35 @@ type Feature = (typeof features)[number]["key"];
       score += 80;
     }
 
+    if (
+      intent.preferredLayouts?.includes(
+        house.layout.toUpperCase()
+      )
+    ) {
+      score += 35;
+    }
+
+    if (
+      intent.preferNearStation
+    ) {
+      if (
+        house.features.includes(
+          "near_station"
+        )
+      ) {
+        score += 20;
+      }
+
+      if (
+        house.walkMinutes !== null
+      ) {
+        score += Math.max(
+          0,
+          20 - house.walkMinutes
+        );
+      }
+    }
+
     return score;
   }
 
@@ -295,6 +382,50 @@ type Feature = (typeof features)[number]["key"];
     );
   }
 
+  function isNumericConstraintLiteral(
+    value: string,
+    numericFilters: ReturnType<
+      typeof parseHouseNumericFilters
+    >
+  ) {
+    const hasNumericFilter =
+      numericFilters.rentMin !==
+        undefined ||
+      numericFilters.rentMax !==
+        undefined ||
+      numericFilters.areaMin !==
+        undefined ||
+      numericFilters.areaMax !==
+        undefined ||
+      numericFilters.walkMinutesMax !==
+        undefined;
+
+    if (!hasNumericFilter) {
+      return false;
+    }
+
+    let text =
+      normalizeHouseSearchText(
+        value
+      );
+
+    text = text
+      .replace(
+        /(?:房租|租金|月租|预算|价格|面积|大小|距离车站|距车站|离车站|车站|車站|駅|步行|徒步|徒歩)/g,
+        ""
+      )
+      .replace(
+        /\d+(?:\.\d+)?/g,
+        ""
+      )
+      .replace(
+        /(?:万|円|日元|元|㎡|m2|m²|平米|平方米|平方公尺|分钟|分|以内|以下|以上|起步|起|至少|最低|不超过|不高于|最多|到|至)/g,
+        ""
+      );
+
+    return text === "";
+  }
+
 export default function HousesPage() {
 
   const router = useRouter();
@@ -310,113 +441,305 @@ export default function HousesPage() {
       ? pageParam
       : 1;
 
-  const searchRef =
-  useRef<HTMLDivElement | null>(null);
+  const keyword =
+    searchParams
+      .get("q")
+      ?.trim() ?? "";
 
-  const [searchInput, setSearchInput] =
-    useState("");
+  const regionParam =
+    searchParams.get("region");
 
-  const [keyword, setKeyword] =
-    useState("");
+  const region: Region =
+    regionParam &&
+    regions.includes(
+      regionParam as Region
+    )
+      ? (regionParam as Region)
+      : "全部地区";
 
-  const [region, setRegion] =
-    useState<Region>("全部地区");
+  const layoutParam =
+    searchParams.get("layout");
 
-  const [layout, setLayout] =
-    useState<Layout>("全部");
+  const layout: Layout =
+    layoutParam &&
+    layouts.includes(
+      layoutParam as Layout
+    )
+      ? (layoutParam as Layout)
+      : "全部";
 
-  const [activeFeatures, setActiveFeatures] =
-    useState<Feature[]>([]);
+  const featureParam =
+    searchParams.get("features") ??
+    "";
 
-  const [sort, setSort] =
-    useState("latest");
-
-  function setPage(
-      nextPage:
-        | number
-        | ((value: number) => number)
-    ) {
-      const resolvedPage =
-        typeof nextPage === "function"
-          ? nextPage(page)
-          : nextPage;
-
-      const newPage = Math.max(
-        1,
-        Math.floor(resolvedPage)
-      );
-
-      const params =
-        new URLSearchParams(
-          searchParams.toString()
-        );
-
-      if (newPage === 1) {
-        params.delete("page");
-      } else {
-        params.set(
-          "page",
-          String(newPage)
-        );
-      }
-
-      const query = params.toString();
-
-      router.push(
-        query
-          ? `/houses?${query}`
-          : "/houses",
-        {
-          scroll: false,
-        }
-      );
-    }
-
-  function resetPage() {
-    setPage(1);
-  }
-
-  function handleSearch() {
-    setKeyword(searchInput.trim());
-    resetPage();
-  }
-
-  function handleHotKeyword(value: string) {
-    setSearchInput(value);
-    setKeyword(value);
-    resetPage();
-  }
-
-  function toggleFeature(feature: Feature) {
-    setActiveFeatures((current) =>
-      current.includes(feature)
-        ? current.filter(
-            (item) => item !== feature
+  const activeFeatures: Feature[] =
+    Array.from(
+      new Set(
+        featureParam
+          .split(",")
+          .filter(
+            (
+              value
+            ): value is Feature =>
+              features.some(
+                (feature) =>
+                  feature.key ===
+                  value
+              )
           )
-        : [...current, feature]
+      )
     );
 
-    resetPage();
+  const sortParam =
+    searchParams.get("sort");
+
+  const sort: SortValue =
+    sortParam &&
+    sortValues.includes(
+      sortParam as SortValue
+    )
+      ? (sortParam as SortValue)
+      : "latest";
+
+  const searchRef =
+    useRef<HTMLDivElement | null>(
+      null
+    );
+
+  const searchInputRef =
+    useRef<HTMLInputElement | null>(
+      null
+    );
+
+  function pushParams(
+  params: URLSearchParams
+) {
+  const query =
+    params.toString();
+
+  router.push(
+    query
+      ? `/houses?${query}`
+      : "/houses",
+    {
+      scroll: false,
+    }
+  );
+}
+
+function updateFilters(
+  update: (
+    params: URLSearchParams
+  ) => void
+) {
+  const params =
+    new URLSearchParams(
+      searchParams.toString()
+    );
+
+  update(params);
+
+  /*
+   * 任何筛选条件变化，
+   * 自动回到第一页。
+   */
+  params.delete("page");
+
+  pushParams(params);
+}
+
+function setPage(
+  nextPage:
+    | number
+    | ((value: number) => number)
+) {
+  const resolvedPage =
+    typeof nextPage === "function"
+      ? nextPage(page)
+      : nextPage;
+
+  const newPage = Math.max(
+    1,
+    Math.floor(resolvedPage)
+  );
+
+  const params =
+    new URLSearchParams(
+      searchParams.toString()
+    );
+
+  if (newPage === 1) {
+    params.delete("page");
+  } else {
+    params.set(
+      "page",
+      String(newPage)
+    );
   }
 
-  function clearFilters() {
-    setSearchInput("");
-    setKeyword("");
-    setRegion("全部地区");
-    setLayout("全部");
-    setActiveFeatures([]);
-    setSort("latest");
-    setPage(1);
+  pushParams(params);
+}
+
+function handleSearch() {
+  const value =
+    searchInputRef.current
+      ?.value.trim() ?? "";
+
+  const params =
+    new URLSearchParams();
+
+  if (value) {
+    params.set("q", value);
   }
 
-  const filteredHouses = useMemo(() => {
-    let result = [...houses];
+  pushParams(params);
+}
 
-  /* Search */
+function handleHotKeyword(
+  value: string
+) {
+  if (
+    searchInputRef.current
+  ) {
+    searchInputRef.current.value =
+      value;
+  }
+
+  const params =
+    new URLSearchParams();
+
+  params.set("q", value);
+
+  pushParams(params);
+}
+
+function setRegionFilter(
+  value: Region
+) {
+  updateFilters((params) => {
+    params.delete("q");
+
+    if (value === "全部地区") {
+      params.delete("region");
+    } else {
+      params.set(
+        "region",
+        value
+      );
+    }
+  });
+}
+
+function setLayoutFilter(
+  value: Layout
+) {
+  updateFilters((params) => {
+    params.delete("q");
+
+    if (value === "全部") {
+      params.delete("layout");
+    } else {
+      params.set(
+        "layout",
+        value
+      );
+    }
+  });
+}
+
+function toggleFeature(
+  feature: Feature
+) {
+  const nextFeatures =
+    activeFeatures.includes(feature)
+      ? activeFeatures.filter(
+          (item) =>
+            item !== feature
+        )
+      : [
+          ...activeFeatures,
+          feature,
+        ];
+
+  updateFilters((params) => {
+
+    params.delete("q");
+    if (
+      nextFeatures.length === 0
+    ) {
+      params.delete(
+        "features"
+      );
+    } else {
+      params.set(
+        "features",
+        nextFeatures.join(",")
+      );
+    }
+  });
+}
+
+function setSortFilter(
+  value: SortValue
+) {
+  updateFilters((params) => {
+    if (value === "latest") {
+      params.delete("sort");
+    } else {
+      params.set(
+        "sort",
+        value
+      );
+    }
+  });
+}
+
+function clearFilters() {
+  if (
+    searchInputRef.current
+  ) {
+    searchInputRef.current.value =
+      "";
+  }
+
+  router.push(
+    "/houses",
+    {
+      scroll: false,
+    }
+  );
+}
+
+  const filteredHouses = (() => {
+    let result = houses.filter(
+      (house) =>
+        house.moderationStatus === "approved" &&
+        (
+          house.listingStatus === "available" ||
+          house.listingStatus === "paused"
+        )
+    );
+
+  const searchIntent =
+    keyword
+      ? parseHouseSearchIntent(
+          keyword
+        )
+      : {};
+
+
+    /* Search */
 
   if (keyword) {
+    const semanticSearch =
+      removeHouseSearchIntentText(
+        keyword
+      );
+
     const parsedSearch =
-      parseHouseSearch(keyword);
+      parseHouseSearch(
+        semanticSearch
+      );
 
     const numericFilters =
       parseHouseNumericFilters(
@@ -430,13 +753,22 @@ export default function HousesPage() {
       );
 
     const literalGroups =
-    parsedSearch.filter(
-      (group) =>
-        group.type === "literal"
-    );
+      parsedSearch.filter(
+        (group) =>
+          group.type ===
+            "literal" &&
+          !isNumericConstraintLiteral(
+            group.query,
+            numericFilters
+          )
+      );
 
     result = result.filter(
       (house) => {
+        const publisherCompany =
+          getPublisherById(
+            house.publisherId
+          )?.company ?? "";
 
         const houseText =
           normalizeHouseSearchText(
@@ -450,7 +782,7 @@ export default function HousesPage() {
               house.structure,
               house.direction,
               house.availableDate,
-              house.company,
+              publisherCompany,
               house.description,
               ...house.tags,
             ].join(" ")
@@ -515,6 +847,26 @@ export default function HousesPage() {
                 group.type ===
                 "feature"
               ) {
+                if (
+                  group.key ===
+                  "foreigner_friendly"
+                ) {
+                  return (
+                    house.foreignerAllowed ===
+                    true
+                  );
+                }
+
+                if (
+                  group.key ===
+                  "student_allowed"
+                ) {
+                  return (
+                    house.studentAllowed ===
+                    true
+                  );
+                }
+
                 return house.features.includes(
                   group.key as HouseFeature
                 );
@@ -625,6 +977,28 @@ export default function HousesPage() {
 
     if (
       sort === "latest" &&
+      keyword &&
+      searchIntent.sort ===
+        "rent-asc"
+    ) {
+      result.sort(
+        (a, b) =>
+          a.rentValue -
+          b.rentValue
+      );
+    } else if (
+      sort === "latest" &&
+      keyword &&
+      searchIntent.sort ===
+        "area-desc"
+    ) {
+      result.sort(
+        (a, b) =>
+          b.areaValue -
+          a.areaValue
+      );
+    } else if (
+      sort === "latest" &&
       keyword
     ) {
       result =
@@ -632,11 +1006,8 @@ export default function HousesPage() {
           result,
           keyword
         );
-    }
-
-    if (
-      sort === "latest" &&
-      !keyword
+    } else if (
+      sort === "latest"
     ) {
       result.sort(
         (a, b) =>
@@ -652,20 +1023,17 @@ export default function HousesPage() {
     /* Features */
 
     activeFeatures.forEach(
-      (feature) => {
-        const houseFeature =
-          featureMap[feature];
+    (houseFeature) => {
+      result = result.filter(
+        (house) =>
+          house.features.includes(
+            houseFeature
+          )
+      );
+    }
+);
 
-        result = result.filter(
-          (house) =>
-            house.features.includes(
-              houseFeature
-            )
-        );
-      }
-    );
-
-    if (sort === "rentAsc") {
+    if (sort === "rent-asc") {
       result.sort(
         (a, b) =>
           a.rentValue -
@@ -673,7 +1041,7 @@ export default function HousesPage() {
       );
     }
 
-    if (sort === "rentDesc") {
+    if (sort === "rent-desc") {
       result.sort(
         (a, b) =>
           b.rentValue -
@@ -681,7 +1049,7 @@ export default function HousesPage() {
       );
     }
 
-    if (sort === "areaDesc") {
+    if (sort === "area-desc") {
       result.sort(
         (a, b) =>
           b.areaValue -
@@ -690,13 +1058,7 @@ export default function HousesPage() {
     }
 
     return result;
-  }, [
-    keyword,
-    region,
-    layout,
-    activeFeatures,
-    sort,
-  ]);
+    })();
 
   const totalPages = Math.max(
     1,
@@ -721,6 +1083,9 @@ export default function HousesPage() {
     region !== "全部地区" ||
     layout !== "全部" ||
     activeFeatures.length > 0;
+
+  const searchParamsString =
+    searchParams.toString();
 
   return (
     <main className="min-h-screen bg-slate-950">
@@ -886,12 +1251,8 @@ export default function HousesPage() {
                   />
 
                   <input
-                    value={searchInput}
-                    onChange={(e) =>
-                      setSearchInput(
-                        e.target.value
-                      )
-                    }
+                    ref={searchInputRef}
+                    defaultValue={keyword}
                     onKeyDown={(e) => {
                       if (
                         e.key === "Enter"
@@ -1127,10 +1488,9 @@ export default function HousesPage() {
                     <button
                       key={item}
                       type="button"
-                      onClick={() => {
-                        setRegion(item);
-                        resetPage();
-                      }}
+                      onClick={() =>
+                        setRegionFilter(item)
+                      }
                       className={`
                         w-full
                         rounded-xl
@@ -1187,10 +1547,9 @@ export default function HousesPage() {
                       <button
                         key={item}
                         type="button"
-                        onClick={() => {
-                          setLayout(item);
-                          resetPage();
-                        }}
+                        onClick={() =>
+                          setLayoutFilter(item)
+                        }
                         className={`
                           rounded-xl
                           border
@@ -1428,12 +1787,11 @@ export default function HousesPage() {
                 <div className="relative">
                   <select
                     value={sort}
-                    onChange={(e) => {
-                      setSort(
-                        e.target.value
-                      );
-                      resetPage();
-                    }}
+                    onChange={(e) =>
+                      setSortFilter(
+                        e.target.value as SortValue
+                      )
+                    }
                     className="
                       appearance-none
                       rounded-xl
@@ -1455,15 +1813,15 @@ export default function HousesPage() {
                       最新发布
                     </option>
 
-                    <option value="rentAsc">
+                    <option value="rent-asc">
                       租金最低
                     </option>
 
-                    <option value="rentDesc">
+                    <option value="rent-desc">
                       租金最高
                     </option>
 
-                    <option value="areaDesc">
+                    <option value="area-desc">
                       面积最大
                     </option>
                   </select>
@@ -1497,11 +1855,12 @@ export default function HousesPage() {
                   {keyword && (
                     <ActiveFilter
                       label={`搜索：${keyword}`}
-                      onRemove={() => {
-                        setKeyword("");
-                        setSearchInput("");
-                        resetPage();
-                      }}
+                      onRemove={() =>
+                        updateFilters(
+                          (params) =>
+                            params.delete("q")
+                        )
+                      }
                     />
                   )}
 
@@ -1509,12 +1868,11 @@ export default function HousesPage() {
                     "全部地区" && (
                     <ActiveFilter
                       label={region}
-                      onRemove={() => {
-                        setRegion(
+                      onRemove={() =>
+                        setRegionFilter(
                           "全部地区"
-                        );
-                        resetPage();
-                      }}
+                        )
+                      }
                     />
                   )}
 
@@ -1522,10 +1880,9 @@ export default function HousesPage() {
                     "全部" && (
                     <ActiveFilter
                       label={layout}
-                      onRemove={() => {
-                        setLayout("全部");
-                        resetPage();
-                      }}
+                      onRemove={() =>
+                        setLayoutFilter("全部")
+                      }
                     />
                   )}
 
@@ -1587,19 +1944,31 @@ export default function HousesPage() {
                     xl:grid-cols-2
                   "
                 >
-                  {currentHouses.map(
-                    (house) => (
+                {currentHouses.map(
+                  (house) => {
+                    const returnTo =
+                      `/houses${
+                        searchParamsString
+                          ? `?${searchParamsString}`
+                          : ""
+                      }#house-${house.id}`;
+
+                    return (
+                      <div
+                        key={house.id}
+                        id={`house-${house.id}`}
+                        className="scroll-mt-24"
+                      >
                         <HouseCard
-                          key={house.id}
                           {...house}
-                          href={
-                            currentPage > 1
-                              ? `/houses/${house.id}?fromPage=${currentPage}`
-                              : `/houses/${house.id}`
-                          }
+                          href={`/houses/${house.id}?returnTo=${encodeURIComponent(
+                            returnTo
+                          )}`}
                         />
-                    )
-                  )}
+                      </div>
+                    );
+                  }
+                )}
                 </div>
               ) : (
                 <div

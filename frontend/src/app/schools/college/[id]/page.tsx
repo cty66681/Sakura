@@ -493,10 +493,29 @@ const colleges: CollegeDetail[] = [
 
 export default async function CollegeDetailPage({
   params,
+  searchParams,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{
+    id: string;
+  }>;
+
+  searchParams: Promise<{
+    returnTo?: string;
+  }>;
 }) {
   const { id } = await params;
+
+  const {
+    returnTo,
+  } = await searchParams;
+
+  const returnHref =
+    returnTo &&
+    returnTo.startsWith(
+      "/schools/college"
+    )
+      ? returnTo
+      : "/schools/college";
 
   /*
   |--------------------------------------------------------------------------
@@ -537,7 +556,7 @@ export default async function CollegeDetailPage({
     <main className="bg-slate-50 pb-20">
       {/* Header */}
 
-      <CollegeHeader school={school} />
+      <CollegeHeader school={school} returnHref={returnHref} />
 
       <Container>
         <div className="mt-10 grid gap-8 lg:grid-cols-[1fr_340px]">

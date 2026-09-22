@@ -323,10 +323,29 @@ const universities: UniversityDetail[] = [
 
 export default async function UniversityDetailPage({
   params,
+  searchParams,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{
+    id: string;
+  }>;
+
+  searchParams: Promise<{
+    returnTo?: string;
+  }>;
 }) {
   const { id } = await params;
+
+  const {
+    returnTo,
+  } = await searchParams;
+
+  const returnHref =
+    returnTo &&
+    returnTo.startsWith(
+      "/schools/university"
+    )
+      ? returnTo
+      : "/schools/university";
 
   /* =======================================================
      现在：Mock 数据
@@ -385,7 +404,7 @@ export default async function UniversityDetailPage({
           <div className="mx-auto max-w-7xl px-6 pb-12">
 
             <Link
-              href="/schools/university"
+              href={returnHref}
               className="
                 mb-6
                 inline-flex

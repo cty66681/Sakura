@@ -14,6 +14,7 @@ import {
   Bookmark,
   BriefcaseBusiness,
   Building2,
+  MessageCircle,
   FileText,
   GraduationCap,
   Home,
@@ -366,6 +367,96 @@ export default function MobileMenu() {
                   size={17}
                   className="text-slate-400"
                 />
+              </Link>
+
+              {/* Messages */}
+              <Link
+                href="/messages"
+                onClick={closeMenu}
+                className={`
+                  mb-5
+                  flex
+                  min-h-14
+                  items-center
+                  justify-between
+                  gap-3
+                  rounded-2xl
+                  border
+                  px-4
+                  transition
+
+                  ${
+                    isActive("/messages")
+                      ? "border-blue-200 bg-blue-50 text-blue-700"
+                      : "border-slate-200 bg-white text-slate-800 hover:border-blue-200 hover:bg-blue-50/50"
+                  }
+                `}
+              >
+                <div
+                  className="
+                    flex
+                    min-w-0
+                    items-center
+                    gap-3
+                  "
+                >
+                  <span
+                    className={`
+                      flex
+                      h-10
+                      w-10
+                      shrink-0
+                      items-center
+                      justify-center
+                      rounded-xl
+
+                      ${
+                        isActive("/messages")
+                          ? "bg-blue-600 text-white"
+                          : "bg-blue-50 text-blue-600"
+                      }
+                    `}
+                  >
+                    <MessageCircle size={19} />
+                  </span>
+
+                  <div className="min-w-0">
+                    <p
+                      className="
+                        text-sm
+                        font-black
+                      "
+                    >
+                      聊天
+                    </p>
+
+                    <p
+                      className="
+                        mt-0.5
+                        text-[11px]
+                        font-medium
+                        text-slate-400
+                      "
+                    >
+                      查看和继续你的站内聊天
+                    </p>
+                  </div>
+                </div>
+
+                <span
+                  className="
+                    shrink-0
+                    rounded-full
+                    bg-rose-500
+                    px-2
+                    py-1
+                    text-[10px]
+                    font-black
+                    text-white
+                  "
+                >
+                  2
+                </span>
               </Link>
 
               {/* Main Navigation */}

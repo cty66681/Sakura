@@ -28,6 +28,17 @@ type CommentStatus =
 interface CommentAuthor {
   id: string;
   name: string;
+
+  /*
+   * 后端计算，不接受前端提交。
+   *
+   * house:
+   * authorId === house.authorId
+   *
+   * experience:
+   * authorId === experience.authorId
+   */
+  isContentOwner?: boolean;
 }
 
 interface ReplyTargetUser {
@@ -122,6 +133,45 @@ const mockCurrentUser: CommentAuthor = {
   id: "user_001",
   name: "Sakura 用户",
 };
+
+function getCommentCopy(
+  contentType: CommentSectionProps["contentType"]
+) {
+  if (contentType === "house") {
+    return {
+      title: "房源问答",
+      description:
+        "公开询问房源条件、费用和入住资格，其他用户也可以参考。",
+      latestSort: "最新问答",
+      popularSort: "热门问答",
+      accountHint: "以当前账号公开提问",
+      placeholder:
+        "例如：外国人可以申请吗？初期费用大概多少？",
+      submitLabel: "发布问题",
+      emptyTitle: "还没有房源问答",
+      emptyDescription:
+        "有关于这套房的问题，可以先公开提问。",
+      itemLabel: "问题",
+      ownerLabel: "发布者",
+    };
+  }
+
+  return {
+    title: "评论",
+    description:
+      "分享真实经验，也请尊重其他用户。",
+    latestSort: "最新评论",
+    popularSort: "热门评论",
+    accountHint: "以当前账号发表评论",
+    placeholder: "写下你的评论...",
+    submitLabel: "发表评论",
+    emptyTitle: "还没有评论",
+    emptyDescription:
+      "成为第一个参与讨论的人。",
+    itemLabel: "评论",
+    ownerLabel: "作者",
+  };
+}
 
 const initialComments: CommentItem[] = [
   {
@@ -282,9 +332,15 @@ export default function CommentSection({
   contentType,
   contentId,
 }: CommentSectionProps) {
+
+  const copy =
+    getCommentCopy(contentType);
+
   const [comments, setComments] =
-    useState<CommentItem[]>(
-      initialComments
+    useState<CommentItem[]>(() =>
+      contentType === "house"
+        ? []
+        : initialComments
     );
 
   const [commentInput, setCommentInput] =
@@ -898,7 +954,7 @@ export default function CommentSection({
                 sm:text-2xl
               "
             >
-              评论
+              {copy.title}
             </h2>
 
             <span
@@ -924,7 +980,7 @@ export default function CommentSection({
               text-slate-500
             "
           >
-            分享真实经验，也请尊重其他用户。
+            {copy.description}
           </p>
         </div>
 
@@ -957,11 +1013,11 @@ export default function CommentSection({
             "
           >
             <option value="latest">
-              最新评论
+              {copy.latestSort}
             </option>
 
             <option value="popular">
-              热门评论
+              {copy.popularSort}
             </option>
           </select>
 
@@ -1026,7 +1082,7 @@ export default function CommentSection({
                 text-slate-400
               "
             >
-              以当前账号发表评论
+              {copy.accountHint}
             </p>
           </div>
         </div>
@@ -1047,7 +1103,7 @@ export default function CommentSection({
 
             setCommentError("");
           }}
-          placeholder="写下你的评论..."
+          placeholder={copy.placeholder}
           className="
             mt-4
             min-h-28
@@ -1179,7 +1235,7 @@ export default function CommentSection({
               <Send size={16} />
             )}
 
-            发表评论
+            {copy.submitLabel}
           </button>
         </div>
       </form>
@@ -1268,6 +1324,22 @@ export default function CommentSection({
                                 .name
                             }
                           </p>
+
+                            {comment.author.isContentOwner && (
+                              <span
+                                className="
+                                  rounded-full
+                                  bg-emerald-50
+                                  px-2
+                                  py-0.5
+                                  text-[10px]
+                                  font-black
+                                  text-emerald-700
+                                "
+                              >
+                                {copy.ownerLabel}
+                              </span>
+                            )}
 
                           {comment.isMine && (
                             <span
@@ -1445,6 +1517,22 @@ export default function CommentSection({
                                               .name
                                           }
                                         </p>
+
+                                        {reply.author.isContentOwner && (
+                                          <span
+                                            className="
+                                              rounded-full
+                                              bg-emerald-50
+                                              px-2
+                                              py-0.5
+                                              text-[9px]
+                                              font-black
+                                              text-emerald-700
+                                            "
+                                          >
+                                            {copy.ownerLabel}
+                                          </span>
+                                        )}
 
                                         {reply.isMine && (
                                           <span
@@ -1895,7 +1983,7 @@ export default function CommentSection({
                 text-slate-900
               "
             >
-              还没有评论
+              {copy.emptyTitle}
             </h3>
 
             <p
@@ -1905,7 +1993,7 @@ export default function CommentSection({
                 text-slate-500
               "
             >
-              成为第一个参与讨论的人。
+              {copy.emptyDescription}
             </p>
           </div>
         )}

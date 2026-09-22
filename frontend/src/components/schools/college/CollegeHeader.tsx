@@ -1,6 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import Link from "next/link";
 
 import {
@@ -49,6 +53,7 @@ export type CollegeHeaderData = {
 
 interface Props {
   school: CollegeHeaderData;
+  returnHref?: string;
 }
 
 const FAVORITE_KEY =
@@ -59,96 +64,92 @@ const FAVORITE_EVENT =
 
 export default function CollegeHeader({
   school,
+  returnHref = "/schools/college",
 }: Props) {
-  const [favorite, setFavorite] =
-    useState(false);
+  const subscribeFavorite =
+  useCallback(
+    (
+      onStoreChange: () => void
+    ) => {
+      const handleFavoriteChange =
+        () => {
+          onStoreChange();
+        };
 
-  const [copied, setCopied] =
-    useState(false);
-
-  /*
-  |--------------------------------------------------------------------------
-  | TODO [API - GET]
-  |--------------------------------------------------------------------------
-  |
-  | 用户系统完成后：
-  |
-  | GET /api/users/me/favorites/colleges
-  |
-  | 用于读取当前用户收藏状态。
-  |
-  | 当前使用 localStorage。
-  |
-  |--------------------------------------------------------------------------
-  */
-
-  const syncFavorite =
-    useCallback(() => {
-      try {
-        const saved =
-          localStorage.getItem(
-            FAVORITE_KEY
-          );
-
-        if (!saved) {
-          setFavorite(false);
-          return;
+      const handleStorage = (
+        event: StorageEvent
+      ) => {
+        if (
+          event.key ===
+          FAVORITE_KEY
+        ) {
+          onStoreChange();
         }
-
-        const favorites: string[] =
-          JSON.parse(saved);
-
-        setFavorite(
-          favorites.includes(
-            school.id
-          )
-        );
-      } catch {
-        setFavorite(false);
-      }
-    }, [school.id]);
-
-  useEffect(() => {
-    syncFavorite();
-
-    const handleFavoriteChange =
-      () => {
-        syncFavorite();
       };
 
-    const handleStorage = (
-      event: StorageEvent
-    ) => {
-      if (
-        event.key ===
-        FAVORITE_KEY
-      ) {
-        syncFavorite();
-      }
-    };
-
-    window.addEventListener(
-      FAVORITE_EVENT,
-      handleFavoriteChange
-    );
-
-    window.addEventListener(
-      "storage",
-      handleStorage
-    );
-
-    return () => {
-      window.removeEventListener(
+      window.addEventListener(
         FAVORITE_EVENT,
         handleFavoriteChange
       );
 
-      window.removeEventListener(
+      window.addEventListener(
         "storage",
         handleStorage
       );
-    };
-  }, [syncFavorite]);
+
+      return () => {
+        window.removeEventListener(
+          FAVORITE_EVENT,
+          handleFavoriteChange
+        );
+
+        window.removeEventListener(
+          "storage",
+          handleStorage
+        );
+      };
+    },
+    []
+  );
+
+const getFavoriteSnapshot =
+  useCallback(() => {
+    try {
+      const saved =
+        localStorage.getItem(
+          FAVORITE_KEY
+        );
+
+      if (!saved) {
+        return false;
+      }
+
+      const favorites: string[] =
+        JSON.parse(saved);
+
+      return favorites.includes(
+        school.id
+      );
+    } catch {
+      return false;
+    }
+  }, [school.id]);
+
+const getFavoriteServerSnapshot =
+  useCallback(
+    () => false,
+    []
+  );
+
+const favorite =
+  useSyncExternalStore(
+    subscribeFavorite,
+    getFavoriteSnapshot,
+    getFavoriteServerSnapshot
+  );
+
+const [copied, setCopied] =
+  useState(false);
 
   const toggleFavorite = () => {
     /*
@@ -208,9 +209,6 @@ export default function CollegeHeader({
           school.id
         );
 
-      setFavorite(
-        nextFavorite
-      );
 
       window.dispatchEvent(
         new CustomEvent(
@@ -225,9 +223,7 @@ export default function CollegeHeader({
         )
       );
     } catch {
-      setFavorite(
-        (current) => !current
-      );
+      return;
     }
   };
 
@@ -319,7 +315,7 @@ export default function CollegeHeader({
           {/* Back */}
 
           <Link
-            href="/schools/college"
+            href={returnHref}
             className="
               inline-flex
               items-center

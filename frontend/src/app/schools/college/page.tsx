@@ -30,6 +30,10 @@ import {
 
 import Container from "@/components/layout/Container";
 
+import {
+  normalizeCollegeSearchText,
+  parseCollegeSearch,
+} from "@/lib/search/collegeSearchDictionary";
 /*
 |--------------------------------------------------------------------------
 | 专门学校数据类型
@@ -502,6 +506,185 @@ const categories: College["category"][] = [
 
 const PAGE_SIZE = 6;
 
+function getCollegeSearchScore(
+  college: (typeof colleges)[number],
+  search: string
+) {
+  if (!search.trim()) {
+    return 0;
+  }
+
+  const groups =
+    parseCollegeSearch(search);
+
+  const nameText =
+    normalizeCollegeSearchText(
+      college.name
+    );
+
+  const englishNameText =
+    normalizeCollegeSearchText(
+      college.englishName
+    );
+
+  const locationText =
+    normalizeCollegeSearchText(
+      [
+        college.prefecture,
+        college.city,
+      ].join(" ")
+    );
+
+  const categoryText =
+    normalizeCollegeSearchText(
+      college.category
+    );
+
+  const tagText =
+    normalizeCollegeSearchText(
+      college.tags.join(" ")
+    );
+
+  const fullText =
+    normalizeCollegeSearchText(
+      [
+        college.name,
+        college.englishName,
+        college.prefecture,
+        college.city,
+        college.category,
+        ...college.tags,
+      ].join(" ")
+    );
+
+  let score = 0;
+
+  for (const group of groups) {
+    if (
+      group.type ===
+      "location"
+    ) {
+      if (
+        group.aliases.some(
+          (alias) =>
+            locationText.includes(
+              alias
+            )
+        )
+      ) {
+        score += 70;
+      }
+
+      continue;
+    }
+
+    if (
+      group.type ===
+      "category"
+    ) {
+      if (
+        group.aliases.some(
+          (alias) =>
+            categoryText.includes(
+              alias
+            ) ||
+            tagText.includes(
+              alias
+            )
+        )
+      ) {
+        score += 80;
+      }
+
+      continue;
+    }
+
+    if (
+      group.type ===
+      "support"
+    ) {
+      score += 60;
+      continue;
+    }
+
+    if (
+      group.type ===
+      "condition"
+    ) {
+      score += 45;
+      continue;
+    }
+
+    if (
+      group.type ===
+      "literal"
+    ) {
+      for (
+        const alias of group.aliases
+      ) {
+        if (
+          nameText.includes(alias)
+        ) {
+          score += 120;
+        } else if (
+          englishNameText.includes(
+            alias
+          )
+        ) {
+          score += 90;
+        } else if (
+          categoryText.includes(
+            alias
+          )
+        ) {
+          score += 70;
+        } else if (
+          tagText.includes(alias)
+        ) {
+          score += 40;
+        } else if (
+          fullText.includes(alias)
+        ) {
+          score += 15;
+        }
+      }
+    }
+  }
+
+  const normalizedSearch =
+    normalizeCollegeSearchText(
+      search
+    );
+
+  if (
+    normalizedSearch &&
+    nameText.includes(
+      normalizedSearch
+    )
+  ) {
+    score += 150;
+  }
+
+  return score;
+}
+
+function sortCollegesBySearchRelevance(
+  list: typeof colleges,
+  search: string
+) {
+  return [...list].sort(
+    (a, b) =>
+      getCollegeSearchScore(
+        b,
+        search
+      ) -
+      getCollegeSearchScore(
+        a,
+        search
+      )
+  );
+}
+
 export default function CollegePage() {
   return (
     <Suspense fallback={<CollegeLoading />}>
@@ -551,11 +734,6 @@ function CollegePageContent() {
     ) || 1
   );
 
-  const [
-    keywordInput,
-    setKeywordInput,
-  ] = useState(keyword);
-
   const updateQuery = (
     changes: Record<
       string,
@@ -604,18 +782,17 @@ function CollegePageContent() {
     );
   };
 
-  const handleSearch = () => {
-    updateQuery({
-      q:
-        keywordInput.trim() ||
-        null,
-      page: null,
-    });
-  };
+  const handleSearch = (
+      value: string
+    ) => {
+      updateQuery({
+        q:
+          value.trim() || null,
+        page: null,
+      });
+    };
 
   const clearSearch = () => {
-    setKeywordInput("");
-
     updateQuery({
       q: null,
       page: null,
@@ -632,29 +809,217 @@ function CollegePageContent() {
         [...colleges];
 
       if (keyword.trim()) {
-        const target =
-          keyword
-            .trim()
-            .toLowerCase();
+  const searchGroups =
+    parseCollegeSearch(
+      keyword
+    );
 
-        result =
-          result.filter(
-            (college) =>
-              [
-                college.name,
-                college.englishName,
-                college.prefecture,
-                college.city,
-                college.category,
-                ...college.tags,
-              ]
-                .join(" ")
-                .toLowerCase()
-                .includes(
-                  target
+  result = result.filter(
+    (college) => {
+      const fullText =
+        normalizeCollegeSearchText(
+          [
+            college.name,
+            college.englishName,
+            college.prefecture,
+            college.city,
+            college.category,
+            ...college.tags,
+          ].join(" ")
+        );
+
+      const locationText =
+        normalizeCollegeSearchText(
+          [
+            college.prefecture,
+            college.city,
+          ].join(" ")
+        );
+
+      return searchGroups.every(
+        (group) => {
+          /* 地区 */
+
+          if (
+            group.type ===
+            "location"
+          ) {
+            return group.aliases.some(
+              (alias) =>
+                locationText.includes(
+                  alias
                 )
-          );
-      }
+            );
+          }
+
+          /* 专业方向 */
+
+          if (
+            group.type ===
+            "category"
+          ) {
+            const categoryMap: Record<
+              string,
+              College["category"]
+            > = {
+              "it-ai": "IT・AI",
+              "design-anime":
+                "设计・动漫",
+              "business-tourism":
+                "商务・观光",
+              "beauty-fashion":
+                "美容・时尚",
+              "medical-welfare":
+                "医疗・福祉",
+              "auto-tech":
+                "汽车・技术",
+            };
+
+            const value =
+              categoryMap[
+                group.key
+              ];
+
+            return value
+              ? college.category ===
+                  value
+              : false;
+          }
+
+          /* 留学生支持 */
+
+          if (
+            group.type ===
+            "support"
+          ) {
+            if (
+              group.key ===
+              "chinese"
+            ) {
+              return college.chineseSupport;
+            }
+
+            if (
+              group.key ===
+              "international"
+            ) {
+              return college.internationalSupport;
+            }
+
+            if (
+              group.key ===
+              "visa"
+            ) {
+              return college.visaSupport;
+            }
+
+            return false;
+          }
+
+          /* 条件 */
+
+          if (
+            group.type ===
+            "condition"
+          ) {
+            if (
+              group.key ===
+              "tuition-under-100"
+            ) {
+              return (
+                college.tuition <=
+                1000000
+              );
+            }
+
+            if (
+              group.key ===
+              "tuition-under-120"
+            ) {
+              return (
+                college.tuition <=
+                1200000
+              );
+            }
+
+            if (
+              group.key ===
+              "cheap"
+            ) {
+              return (
+                college.tuition <=
+                1000000
+              );
+            }
+
+            if (
+              group.key ===
+              "employment"
+            ) {
+              return (
+                college.employmentRate >
+                  0 ||
+                college.tags.some(
+                  (tag) =>
+                    tag.includes(
+                      "就业"
+                    )
+                )
+              );
+            }
+
+            if (
+              group.key ===
+              "high-employment"
+            ) {
+              return (
+                college.employmentRate >=
+                95
+              );
+            }
+
+            if (
+              group.key ===
+              "qualification"
+            ) {
+              return college.tags.some(
+                (tag) =>
+                  tag.includes(
+                    "资格"
+                  )
+              );
+            }
+
+            if (
+              group.key ===
+              "recommended"
+            ) {
+              return college.recommended;
+            }
+
+            return false;
+          }
+
+          /* 普通自由词 */
+
+          if (
+            group.type ===
+            "literal"
+          ) {
+            return group.aliases.some(
+              (alias) =>
+                fullText.includes(
+                  alias
+                )
+            );
+          }
+
+          return true;
+        }
+      );
+    }
+  );
+}
 
       /*
        * region 统一对应 prefecture
@@ -768,17 +1133,27 @@ function CollegePageContent() {
           break;
 
         default:
-          result.sort(
-            (a, b) =>
-              Number(
-                b.recommended
-              ) -
+          if (keyword.trim()) {
+            result =
+              sortCollegesBySearchRelevance(
+                result,
+                keyword
+              );
+          } else {
+            result.sort(
+              (a, b) =>
                 Number(
-                  a.recommended
-                ) ||
-              b.rating -
-                a.rating
-          );
+                  b.recommended
+                ) -
+                  Number(
+                    a.recommended
+                  ) ||
+                b.rating -
+                  a.rating
+            );
+          }
+
+          break;
       }
 
       return result;
@@ -815,8 +1190,6 @@ function CollegePageContent() {
     );
 
   const resetFilters = () => {
-    setKeywordInput("");
-
     router.replace(
       pathname,
       {
@@ -824,6 +1197,16 @@ function CollegePageContent() {
       }
     );
   };
+
+  const searchParamsString =
+  searchParams.toString();
+
+  const currentListUrl =
+    `${pathname}${
+      searchParamsString
+        ? `?${searchParamsString}`
+        : ""
+    }#college-results`;
 
   return (
     <main className="min-h-screen bg-slate-50 pb-24">
@@ -861,62 +1244,12 @@ function CollegePageContent() {
 
               {/* Search */}
 
-              <div className="mt-9 flex max-w-2xl items-center rounded-2xl border border-white/10 bg-white p-2 shadow-2xl">
-                <Search
-                  size={20}
-                  className="ml-3 shrink-0 text-slate-400"
-                />
-
-                <input
-                  value={
-                    keywordInput
-                  }
-                  onChange={(
-                    event
-                  ) =>
-                    setKeywordInput(
-                      event.target
-                        .value
-                    )
-                  }
-                  onKeyDown={(
-                    event
-                  ) => {
-                    if (
-                      event.key ===
-                      "Enter"
-                    ) {
-                      handleSearch();
-                    }
-                  }}
-                  placeholder="搜索学校、专业、都道府县、城市..."
-                  className="h-11 min-w-0 flex-1 px-4 text-sm text-slate-900 outline-none placeholder:text-slate-400"
-                />
-
-                {keywordInput && (
-                  <button
-                    type="button"
-                    onClick={
-                      clearSearch
-                    }
-                    className="mr-2 rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                  >
-                    <X
-                      size={17}
-                    />
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  onClick={
-                    handleSearch
-                  }
-                  className="h-11 rounded-xl bg-orange-500 px-6 text-sm font-bold text-white transition hover:bg-orange-600"
-                >
-                  搜索
-                </button>
-              </div>
+              <CollegeSearchBox
+                key={keyword}
+                initialValue={keyword}
+                onSearch={handleSearch}
+                onClear={clearSearch}
+              />
 
               {/* Quick tags */}
 
@@ -1254,7 +1587,7 @@ function CollegePageContent() {
               RESULTS
           ================================================= */}
 
-          <div className="flex min-h-[1100px] flex-col">
+          <div id="college-results" className="flex min-h-[1100px] flex-col">
             <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
               <div>
                 <h2 className="text-xl font-bold text-slate-900">
@@ -1321,6 +1654,9 @@ function CollegePageContent() {
                       college={
                         college
                       }
+                      href={`/schools/college/${college.id}?returnTo=${encodeURIComponent(
+                        currentListUrl
+                      )}`}
                     />
                   )
                 )}
@@ -1456,6 +1792,75 @@ function CollegePageContent() {
   );
 }
 
+function CollegeSearchBox({
+    initialValue,
+    onSearch,
+    onClear,
+  }: {
+    initialValue: string;
+    onSearch: (value: string) => void;
+    onClear: () => void;
+  }) {
+    const [value, setValue] =
+      useState(initialValue);
+
+    const submitSearch = () => {
+      onSearch(value);
+    };
+
+    return (
+      <div className="mt-9 flex max-w-2xl items-center rounded-2xl border border-white/10 bg-white p-2 shadow-2xl">
+        <Search
+          size={20}
+          className="ml-3 shrink-0 text-slate-400"
+        />
+
+        <input
+          value={value}
+          onChange={(event) =>
+            setValue(
+              event.target.value
+            )
+          }
+          onKeyDown={(event) => {
+            if (
+              event.key === "Enter"
+            ) {
+              submitSearch();
+            }
+          }}
+          placeholder="搜索学校、专业、都道府县、城市..."
+          className="h-11 min-w-0 flex-1 px-4 text-sm text-slate-900 outline-none placeholder:text-slate-400"
+        />
+
+        {value && (
+          <button
+            type="button"
+            onClick={() => {
+              setValue("");
+              onClear();
+            }}
+            className="mr-2 rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+          >
+            <X size={17} />
+          </button>
+        )}
+
+        <button
+          type="button"
+          onClick={
+            submitSearch
+          }
+          className="h-11 rounded-xl bg-orange-500 px-6 text-sm font-bold text-white transition hover:bg-orange-600"
+        >
+          搜索
+        </button>
+      </div>
+    );
+  }
+
+
+
 /*
 |--------------------------------------------------------------------------
 | College Card
@@ -1464,12 +1869,14 @@ function CollegePageContent() {
 
 function CollegeCard({
   college,
+  href,
 }: {
   college: College;
+  href: string;
 }) {
   return (
     <Link
-      href={`/schools/college/${college.id}`}
+      href={href}
       className="group block rounded-3xl border border-slate-200 bg-white p-6 transition duration-300 hover:-translate-y-1 hover:border-orange-300 hover:shadow-xl hover:shadow-slate-200/60"
     >
       <div className="flex flex-col gap-6 md:flex-row md:items-start">

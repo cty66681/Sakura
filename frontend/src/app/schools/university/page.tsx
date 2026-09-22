@@ -19,6 +19,10 @@ import { SlidersHorizontal } from "lucide-react";
 
 import UniversityHero from "@/components/schools/university/UniversityHero";
 import UniversityCard from "@/components/schools/university/UniversityCard";
+import {
+  normalizeUniversitySearchText,
+  parseUniversitySearch,
+} from "@/lib/search/universitySearchDictionary";
 
 interface University {
   id: string;
@@ -532,6 +536,164 @@ const topFilters = [
   "艺术",
 ];
 
+function getUniversitySearchScore(
+  school: (typeof universities)[number],
+  search: string
+) {
+  if (!search.trim()) {
+    return 0;
+  }
+
+  const groups =
+    parseUniversitySearch(search);
+
+  const nameText =
+    normalizeUniversitySearchText(
+      school.name
+    );
+
+  const locationText =
+    normalizeUniversitySearchText(
+      [
+        school.prefecture,
+        school.city,
+      ].join(" ")
+    );
+
+  const tagText =
+    normalizeUniversitySearchText(
+      school.tags.join(" ")
+    );
+
+  const categoryText =
+    normalizeUniversitySearchText(
+      school.categories.join(" ")
+    );
+
+  const majorText =
+    normalizeUniversitySearchText(
+      school.majors.join(" ")
+    );
+
+  const fullText =
+    normalizeUniversitySearchText(
+      [
+        school.name,
+        school.prefecture,
+        school.city,
+        school.type,
+        school.degree,
+        ...school.tags,
+        ...school.categories,
+        ...school.majors,
+      ].join(" ")
+    );
+
+  let score = 0;
+
+  for (const group of groups) {
+    if (group.type === "location") {
+      if (
+        group.aliases.some((alias) =>
+          locationText.includes(alias)
+        )
+      ) {
+        score += 70;
+      }
+
+      continue;
+    }
+
+    if (group.type === "type") {
+      score += 60;
+      continue;
+    }
+
+    if (group.type === "degree") {
+      score += 65;
+      continue;
+    }
+
+    if (group.type === "category") {
+      if (
+        group.aliases.some((alias) =>
+          categoryText.includes(alias)
+        )
+      ) {
+        score += 55;
+      }
+
+      continue;
+    }
+
+    if (group.type === "major") {
+      if (
+        group.aliases.some((alias) =>
+          majorText.includes(alias)
+        )
+      ) {
+        score += 80;
+      }
+
+      continue;
+    }
+
+    if (group.type === "condition") {
+      score += 40;
+      continue;
+    }
+
+    if (group.type === "literal") {
+      for (const alias of group.aliases) {
+        if (nameText.includes(alias)) {
+          score += 120;
+        } else if (
+          tagText.includes(alias)
+        ) {
+          score += 35;
+        } else if (
+          fullText.includes(alias)
+        ) {
+          score += 15;
+        }
+      }
+    }
+  }
+
+  const normalizedSearch =
+    normalizeUniversitySearchText(
+      search
+    );
+
+  if (
+    normalizedSearch &&
+    nameText.includes(
+      normalizedSearch
+    )
+  ) {
+    score += 150;
+  }
+
+  return score;
+}
+
+function sortUniversitiesBySearchRelevance(
+  list: typeof universities,
+  search: string
+) {
+  return [...list].sort(
+    (a, b) =>
+      getUniversitySearchScore(
+        b,
+        search
+      ) -
+      getUniversitySearchScore(
+        a,
+        search
+      )
+  );
+}
+
 export default function UniversityPage() {
   return (
     <Suspense fallback={<UniversityPageLoading />}>
@@ -588,26 +750,6 @@ function UniversityPageContent() {
     rawPage >= 1
       ? Math.floor(rawPage)
       : 1;
-
-  /* =========================================================
-     Search
-  ========================================================= */
-
-  const [
-    keywordInput,
-    setKeywordInput,
-  ] = useState(keyword);
-
-  const searchParamsString =
-    searchParams.toString();
-
-  useEffect(() => {
-    setKeywordInput(
-      new URLSearchParams(
-        searchParamsString
-      ).get("q") ?? ""
-    );
-  }, [searchParamsString]);
 
   /* =========================================================
      URL UPDATE
@@ -672,18 +814,17 @@ function UniversityPageContent() {
     ]
   );
 
-  const handleSearch = () => {
+  const handleSearch = (
+    value: string
+  ) => {
     updateQuery({
       q:
-        keywordInput.trim() ||
-        null,
+        value.trim() || null,
       page: null,
     });
   };
 
   const handleClearSearch = () => {
-    setKeywordInput("");
-
     updateQuery({
       q: null,
       page: null,
@@ -796,29 +937,279 @@ function UniversityPageContent() {
       ];
 
       if (keyword.trim()) {
-        const q =
-          keyword
-            .trim()
-            .toLowerCase();
+  const searchGroups =
+    parseUniversitySearch(
+      keyword
+    );
 
-        result =
-          result.filter(
-            (school) =>
-              [
-                school.name,
-                school.prefecture,
-                school.city,
-                school.type,
-                school.degree,
-                ...school.tags,
-                ...school.categories,
-                ...school.majors,
-              ]
-                .join(" ")
-                .toLowerCase()
-                .includes(q)
-          );
-      }
+  result = result.filter(
+    (school) => {
+      const schoolText =
+        normalizeUniversitySearchText(
+          [
+            school.name,
+            school.prefecture,
+            school.city,
+            school.type,
+            school.degree,
+            ...school.tags,
+            ...school.categories,
+            ...school.majors,
+          ].join(" ")
+        );
+
+      return searchGroups.every(
+        (group) => {
+          /* 地区 */
+
+          if (
+            group.type ===
+            "location"
+          ) {
+            const locationText =
+              normalizeUniversitySearchText(
+                [
+                  school.prefecture,
+                  school.city,
+                ].join(" ")
+              );
+
+            return group.aliases.some(
+              (alias) =>
+                locationText.includes(
+                  alias
+                )
+            );
+          }
+
+          /* 国立 / 公立 / 私立 */
+
+          if (
+            group.type === "type"
+          ) {
+            if (
+              group.key ===
+              "national"
+            ) {
+              return (
+                school.type ===
+                "国立大学"
+              );
+            }
+
+            if (
+              group.key ===
+              "public"
+            ) {
+              return (
+                school.type ===
+                "公立大学"
+              );
+            }
+
+            if (
+              group.key ===
+              "private"
+            ) {
+              return (
+                school.type ===
+                "私立大学"
+              );
+            }
+
+            return false;
+          }
+
+          /* 大学 / 大学院 */
+
+          if (
+            group.type ===
+            "degree"
+          ) {
+            if (
+              group.key ===
+              "undergraduate"
+            ) {
+              return (
+                school.degree ===
+                "大学"
+              );
+            }
+
+            if (
+              group.key ===
+              "graduate"
+            ) {
+              return (
+                school.degree ===
+                "大学院"
+              );
+            }
+
+            return false;
+          }
+
+          /* 学科类别 */
+
+          if (
+            group.type ===
+            "category"
+          ) {
+            const categoryMap: Record<
+              string,
+              string
+            > = {
+              humanities: "文科",
+              science: "理科",
+              medical: "医学",
+              art: "艺术",
+            };
+
+            const value =
+              categoryMap[
+                group.key
+              ];
+
+            return value
+              ? school.categories.includes(
+                  value
+                )
+              : false;
+          }
+
+          /* 专业 */
+
+          if (
+            group.type ===
+            "major"
+          ) {
+            const majorMap: Record<
+              string,
+              string
+            > = {
+              "it-ai": "IT・AI",
+              "economics-business":
+                "经济・经营",
+              "literature-language":
+                "文学・语言",
+              "law-politics":
+                "法学・政治",
+              engineering:
+                "理工・机械",
+              "medicine-health":
+                "医学・医疗",
+              "art-design":
+                "艺术・设计",
+              "education-social":
+                "教育・社会",
+            };
+
+            const value =
+              majorMap[group.key];
+
+            return value
+              ? school.majors.includes(
+                  value
+                )
+              : false;
+          }
+
+          /* EJU / QS / 奖学金等 */
+
+          if (
+            group.type ===
+            "condition"
+          ) {
+            if (
+              group.key === "eju"
+            ) {
+              return school.eju;
+            }
+
+            if (
+              group.key ===
+              "no-eju"
+            ) {
+              return !school.eju;
+            }
+
+            if (
+              group.key ===
+              "scholarship"
+            ) {
+              return school.tags.some(
+                (tag) =>
+                  tag.includes(
+                    "奖学金"
+                  )
+              );
+            }
+
+            if (
+              group.key ===
+              "english"
+            ) {
+              return school.tags.some(
+                (tag) =>
+                  tag.includes(
+                    "英语"
+                  ) ||
+                  tag.includes(
+                    "英文"
+                  )
+              );
+            }
+
+            if (
+              group.key ===
+              "top50"
+            ) {
+              return (
+                school.qs <= 50
+              );
+            }
+
+            if (
+              group.key ===
+              "top100"
+            ) {
+              return (
+                school.qs <= 100
+              );
+            }
+
+            if (
+              group.key ===
+              "top200"
+            ) {
+              return (
+                school.qs <= 200
+              );
+            }
+
+            return false;
+          }
+
+          /* 学校名称 / 城市 / 其他自由词 */
+
+          if (
+            group.type ===
+            "literal"
+          ) {
+            return group.aliases.some(
+              (alias) =>
+                schoolText.includes(
+                  alias
+                )
+            );
+          }
+
+          return true;
+        }
+      );
+    }
+  );
+}
 
       /*
        * region = prefecture
@@ -975,6 +1366,17 @@ function UniversityPageContent() {
           );
       }
 
+      if (
+        sort === "recommended" &&
+        keyword.trim()
+      ) {
+        result =
+          sortUniversitiesBySearchRelevance(
+            result,
+            keyword
+          );
+      }
+
       if (sort === "qs") {
         result.sort(
           (a, b) =>
@@ -1123,8 +1525,6 @@ function UniversityPageContent() {
   };
 
   const clearFilters = () => {
-    setKeywordInput("");
-
     router.replace(
       pathname,
       {
@@ -1133,21 +1533,23 @@ function UniversityPageContent() {
     );
   };
 
+  const searchParamsString =
+  searchParams.toString();
+
+  const currentListUrl =
+    `${pathname}${
+      searchParamsString
+        ? `?${searchParamsString}`
+        : ""
+    }#university-results`;
+
   return (
     <main className="min-h-screen bg-slate-50">
-      <UniversityHero
-        keywordInput={
-          keywordInput
-        }
-        onKeywordChange={
-          setKeywordInput
-        }
-        onSearch={
-          handleSearch
-        }
-        onClear={
-          handleClearSearch
-        }
+      <UniversityHeroSearch
+        key={keyword}
+        initialValue={keyword}
+        onSearch={handleSearch}
+        onClear={handleClearSearch}
       />
 
       {/* =====================================================
@@ -1186,110 +1588,6 @@ function UniversityPageContent() {
               </button>
             )
           )}
-        </div>
-      </section>
-
-      {/* =====================================================
-          POPULAR PREFECTURES
-      ===================================================== */}
-
-      <section className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-5 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex gap-2 overflow-x-auto">
-            {popularPrefectures.map(
-              (item) => {
-                const active =
-                  selectedRegion ===
-                  item;
-
-                return (
-                  <button
-                    key={
-                      item
-                    }
-                    type="button"
-                    onClick={() =>
-                      updateQuery({
-                        region:
-                          item,
-                        page: null,
-                      })
-                    }
-                    className={`
-                      whitespace-nowrap
-                      rounded-xl
-                      px-4
-                      py-2.5
-                      text-sm
-                      font-semibold
-                      transition
-                      ${
-                        active
-                          ? "bg-blue-600 text-white"
-                          : "bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-700"
-                      }
-                    `}
-                  >
-                    {item ===
-                    "全部"
-                      ? "全国"
-                      : item}
-                  </button>
-                );
-              }
-            )}
-          </div>
-
-          <select
-            value={
-              selectedRegion
-            }
-            onChange={(event) =>
-              updateQuery({
-                region:
-                  event.target
-                    .value,
-                page: null,
-              })
-            }
-            className="h-11 min-w-[220px] rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 outline-none transition focus:border-blue-400"
-          >
-            <option value="全部">
-              全国 47 都道府县
-            </option>
-
-            {prefectureGroups.map(
-              (group) => (
-                <optgroup
-                  key={
-                    group.region
-                  }
-                  label={
-                    group.region
-                  }
-                >
-                  {group.prefectures.map(
-                    (
-                      prefecture
-                    ) => (
-                      <option
-                        key={
-                          prefecture
-                        }
-                        value={
-                          prefecture
-                        }
-                      >
-                        {
-                          prefecture
-                        }
-                      </option>
-                    )
-                  )}
-                </optgroup>
-              )
-            )}
-          </select>
         </div>
       </section>
 
@@ -1777,6 +2075,9 @@ function UniversityPageContent() {
                         id={
                           school.id
                         }
+                        href={`/schools/university/${school.id}?returnTo=${encodeURIComponent(
+                          currentListUrl
+                        )}`}
                         name={
                           school.name
                         }
@@ -1969,6 +2270,33 @@ function RadioOption({
     </label>
   );
 }
+
+  function UniversityHeroSearch({
+    initialValue,
+    onSearch,
+    onClear,
+  }: {
+    initialValue: string;
+    onSearch: (value: string) => void;
+    onClear: () => void;
+  }) {
+    const [value, setValue] =
+      useState(initialValue);
+
+    return (
+      <UniversityHero
+        keywordInput={value}
+        onKeywordChange={setValue}
+        onSearch={() =>
+          onSearch(value)
+        }
+        onClear={() => {
+          setValue("");
+          onClear();
+        }}
+      />
+    );
+  }
 
 function UniversityPageLoading() {
   return (
