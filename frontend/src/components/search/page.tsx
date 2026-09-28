@@ -79,8 +79,16 @@ const filteredHouses = houses.filter((house) => {
           onChange={setKeyword}
         />
 
-        <SearchHot />
-
+        <SearchHot
+          keywords={[
+            "池袋",
+            "新宿",
+            "大阪",
+            "1LDK",
+            "近车站",
+            "可养宠物",
+          ]}
+        />
         <SearchHistory />
 
         <SearchLayout

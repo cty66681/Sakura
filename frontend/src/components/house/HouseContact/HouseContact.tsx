@@ -33,6 +33,7 @@ import {
   MOCK_CURRENT_USER_ID,
   getConversationBetween,
   getHouseContextMessages,
+  getUnreadMessageCount,
   hasHouseReference,
   useChatStore,
 } from "@/store/chatStore";
@@ -325,6 +326,18 @@ export default function HouseContact({
           state.messages
       );
 
+    const readReceipts =
+    useChatStore(
+      (state) =>
+        state.readReceipts
+    );
+
+    const markMessagesRead =
+      useChatStore(
+        (state) =>
+          state.markMessagesRead
+      );
+
     const sendContextTextMessage =
       useChatStore(
         (state) =>
@@ -352,6 +365,19 @@ export default function HouseContact({
             houseId
           )
         : [];
+
+    const unreadCount = conversation
+    ? getUnreadMessageCount(
+        allMessages,
+        readReceipts,
+        conversation.id,
+        MOCK_CURRENT_USER_ID,
+        {
+          type: "house",
+          houseId,
+        }
+      )
+    : 0;
 
     const houseCardAlreadySent =
       conversation
@@ -400,6 +426,57 @@ export default function HouseContact({
     chatOpen,
     showHouseSendPrompt,
     houseId,
+  ]);
+
+  useEffect(() => {
+    if (
+      !chatOpen ||
+      !conversation
+    ) {
+      return;
+    }
+
+    const conversationId =
+      conversation.id;
+
+    function markAsRead() {
+      if (
+        document.visibilityState !==
+        "visible"
+      ) {
+        return;
+      }
+
+      markMessagesRead({
+        conversationId,
+        readerId:
+          MOCK_CURRENT_USER_ID,
+        scope: {
+          type: "house",
+          houseId,
+        },
+      });
+    }
+
+    markAsRead();
+
+    document.addEventListener(
+      "visibilitychange",
+      markAsRead
+    );
+
+    return () => {
+      document.removeEventListener(
+        "visibilitychange",
+        markAsRead
+      );
+    };
+  }, [
+    chatOpen,
+    conversation?.id,
+    houseId,
+    allMessages,
+    markMessagesRead,
   ]);
 
   const canStartConversation =
@@ -893,9 +970,38 @@ export default function HouseContact({
               size={17}
             />
 
-            {canStartConversation
-              ? "咨询这套房"
-              : "当前暂停新的咨询"}
+            {canStartConversation ? (
+              <>
+                咨询这套房
+
+                {unreadCount > 0 && (
+                  <span
+                    aria-label={`${unreadCount} 条未读消息`}
+                    className="
+                      ml-1
+                      inline-flex
+                      min-w-5
+                      items-center
+                      justify-center
+                      rounded-full
+                      bg-red-500
+                      px-1.5
+                      py-0.5
+                      text-[10px]
+                      font-black
+                      leading-none
+                      text-white
+                    "
+                  >
+                    {unreadCount > 99
+                      ? "99+"
+                      : unreadCount}
+                  </span>
+                )}
+              </>
+            ) : (
+              "当前暂停新的咨询"
+            )}
           </button>
 
           <div

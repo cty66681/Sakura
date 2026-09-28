@@ -16,6 +16,10 @@ import {
 
 import Container from "@/components/layout/Container";
 
+import { houses } from "@/data/houses";
+import { jobs } from "@/data/jobs";
+import { getPublisherById } from "@/data/publishers";
+
 import {
   BriefcaseBusiness,
   Building2,
@@ -53,14 +57,16 @@ interface SearchItem {
   location?: string;
   meta?: string;
   publishTime: string;
+  publishedAt?: string;
   views: number;
   tags: string[];
+  searchTerms?: string;
   href: string;
 }
 
 const PAGE_SIZE = 8;
 
-const searchItems: SearchItem[] = [
+const mockSearchItems: SearchItem[] = [
   {
     id: "job-1",
     type: "job",
@@ -219,6 +225,84 @@ const searchItems: SearchItem[] = [
   },
 ];
 
+// TODO [API - GET]
+// 后台接入后，由搜索 API 返回经过权限和审核过滤的结果。
+// 前台不能作为审核权限的最终判断依据。
+
+const houseSearchItems: SearchItem[] = houses
+  .filter(
+    (house) =>
+      house.moderationStatus === "approved" &&
+      (
+        house.listingStatus === "available" ||
+        house.listingStatus === "paused"
+      )
+  )
+  .map((house) => {
+    const publisher = getPublisherById(
+      house.publisherId
+    );
+
+    return {
+      id: `house-${house.id}`,
+      type: "house",
+      title: house.title,
+      summary: house.description,
+      location: house.location,
+      meta: house.rent,
+      publishTime: house.publishTime,
+      publishedAt: house.publishTime,
+      views: house.views,
+      tags: house.tags,
+      searchTerms: [
+        house.prefecture,
+        house.city,
+        house.station,
+        publisher?.name ?? "",
+        publisher?.company ?? "",
+      ].filter(Boolean).join(" "),
+      href: `/houses/${house.id}`,
+    };
+  });
+
+  const jobSearchItems: SearchItem[] = jobs
+    .filter(
+      (job) =>
+        job.moderationStatus === "approved"
+    )
+    .map((job) => ({
+      id: `job-${job.id}`,
+      type: "job",
+      title: job.title,
+      summary: job.description,
+      location: job.location,
+      meta: job.salary,
+      publishTime: job.publishTime,
+      publishedAt: job.publishTime,
+      views: job.views,
+      tags: job.tags,
+      searchTerms: [
+        job.company,
+        job.occupation,
+        job.category,
+        job.employmentType,
+        job.remote,
+        job.language,
+        ...job.workConditions,
+      ].join(" "),
+      href: `/jobs/${job.id}`,
+    }));
+
+const searchItems: SearchItem[] = [
+  ...mockSearchItems.filter(
+    (item) =>
+      item.type !== "house" &&
+      item.type !== "job"
+  ),
+  ...jobSearchItems,
+  ...houseSearchItems,
+];
+
 const typeTabs: {
   value: SearchType;
   label: string;
@@ -258,11 +342,145 @@ const hotKeywords = [
   "租房避坑",
 ];
 
+const searchCategoryTerms: Record<
+  Exclude<SearchType, "all">,
+  string
+> = {
+  job: "工作 招聘 职位",
+  house: "房源 租房 公寓",
+  school: "学校 留学",
+  experience: "经验 分享",
+  scam: "避坑 诈骗 风险",
+};
+
+
+/**
+ * 全站搜索的同义词。
+ * 后续接入后台时，可迁移为搜索词典。
+ */
+const searchSynonymGroups: string[][] = [
+  ["整体", "按摩", "マッサージ", "リラクゼーション"],
+  ["专门学校", "専門学校", "职业学校"],
+  ["语言学校", "日本语学校", "日本語学校", "日语学校"],
+  ["东京", "東京", "tokyo"],
+  ["租房", "房源", "賃貸"],
+  ["工作", "招聘", "职位", "求职"],
+  ["避坑", "防骗", "诈骗", "詐欺"],
+];
+
+/**
+ * 用已知词汇切分没有空格的组合关键词。
+ * 较长的词优先，例如先识别「专门学校」，
+ * 避免提前拆成「专门」和「学校」。
+ */
+const querySplitTerms = [
+  ...new Set([
+    ...searchSynonymGroups.flat(),
+    "日本",
+    "在日",
+    "池袋",
+    "大学院",
+    "大学",
+    "学校",
+    "it",
+    "ai",
+    "java",
+    "python",
+  ]),
+]
+  .map((term) => term.normalize("NFKC").toLowerCase())
+  .sort((a, b) => b.length - a.length);
+
+function normalizeSearchText(value: string): string {
+  return value
+    .normalize("NFKC")
+    .toLowerCase()
+    .trim();
+}
+
+function splitSearchQuery(query: string): string[] {
+  const pieces = normalizeSearchText(query)
+    .split(/[\s,，、/]+/)
+    .filter(Boolean);
+
+  const tokens = pieces.flatMap((piece) => {
+    const result: string[] = [];
+    let remaining = "";
+
+    for (let index = 0; index < piece.length;) {
+      const matched = querySplitTerms.find((term) =>
+        piece.startsWith(term, index)
+      );
+
+      if (matched) {
+        if (remaining) {
+          result.push(remaining);
+          remaining = "";
+        }
+
+        result.push(matched);
+        index += matched.length;
+      } else {
+        remaining += piece[index];
+        index += 1;
+      }
+    }
+
+    if (remaining) {
+      result.push(remaining);
+    }
+
+    return result;
+  });
+
+  // 所有内容都属于日本生活平台。
+  // 搜索「日本求职」时，「日本」无需成为额外的匹配条件。
+  if (tokens.length > 1) {
+    return tokens.filter(
+      (token) => token !== "日本" && token !== "在日"
+    );
+  }
+
+  return tokens;
+}
+
+function matchesSearchTerm(
+  searchableText: string,
+  term: string
+): boolean {
+  const synonymGroup = searchSynonymGroups.find(
+    (group) =>
+      group.some(
+        (synonym) =>
+          normalizeSearchText(synonym) === term
+      )
+  );
+
+  const alternatives = synonymGroup ?? [term];
+
+  return alternatives.some((alternative) =>
+    searchableText.includes(
+      normalizeSearchText(alternative)
+    )
+  );
+}
+
+
 export default function SearchPage() {
   return (
     <Suspense fallback={<SearchPageFallback />}>
-      <SearchPageContent />
+      <SearchPageRoute />
     </Suspense>
+  );
+}
+
+function SearchPageRoute() {
+  const searchParams = useSearchParams();
+
+  return (
+    <SearchPageContent
+      key={searchParams.get("q") ?? ""}
+    />
   );
 }
 
@@ -281,10 +499,7 @@ function SearchPageContent() {
   const [keyword, setKeyword] =
     useState(queryFromUrl);
 
-  const [activeType, setActiveType] =
-    useState<SearchType>(
-      typeFromUrl
-    );
+  const activeType = typeFromUrl;
 
   const [sort, setSort] =
     useState<SortType>("relevance");
@@ -312,36 +527,54 @@ function SearchPageContent() {
               activeType
           );
       }
-
-      if (
+      
+    if (normalizedKeyword) {
+      const keywords = splitSearchQuery(
         normalizedKeyword
-      ) {
-        result =
-          result.filter(
-            (item) => {
-              const searchableText =
-                [
-                  item.title,
-                  item.summary,
-                  item.location ?? "",
-                  item.meta ?? "",
-                  ...item.tags,
-                ]
-                  .join(" ")
-                  .toLowerCase();
+      );
 
-              return searchableText.includes(
-                normalizedKeyword
-              );
-            }
-          );
-      }
+      result = result.filter((item) => {
+        const searchableText = normalizeSearchText(
+          [
+            item.title,
+            item.summary,
+            item.location ?? "",
+            item.meta ?? "",
+            item.searchTerms ?? "",
+            searchCategoryTerms[item.type],
+            ...item.tags,
+          ].join(" ")
+        );
 
-      if (sort === "popular") {
+        return keywords.every((keyword) =>
+          matchesSearchTerm(searchableText, keyword)
+        );
+      });
+    }
+
+      if (sort === "latest") {
+        result.sort((a, b) => {
+          const aTime = a.publishedAt
+            ? Date.parse(a.publishedAt)
+            : NaN;
+
+          const bTime = b.publishedAt
+            ? Date.parse(b.publishedAt)
+            : NaN;
+
+          const aValid = Number.isFinite(aTime);
+          const bValid = Number.isFinite(bTime);
+
+          if (!aValid && !bValid) return 0;
+          if (!aValid) return 1;
+          if (!bValid) return -1;
+
+          return bTime - aTime;
+        });
+      } else if (sort === "popular") {
         result.sort(
           (a, b) =>
-            b.views -
-            a.views
+            b.views - a.views
         );
       }
 
@@ -442,19 +675,17 @@ function SearchPageContent() {
   }
 
   function changeType(
-    value: SearchType
-  ) {
-    setActiveType(value);
-    setPage(1);
+  value: SearchType
+) {
+  setPage(1);
 
     const params =
       new URLSearchParams();
 
-    if (queryFromUrl) {
-      params.set(
-        "q",
-        queryFromUrl
-      );
+    const currentKeyword = keyword.trim();
+
+    if (currentKeyword) {
+      params.set("q", currentKeyword);
     }
 
     if (value !== "all") {
@@ -476,7 +707,6 @@ function SearchPageContent() {
 
   function clearSearch() {
     setKeyword("");
-    setActiveType("all");
     setPage(1);
     setSort("relevance");
 

@@ -78,6 +78,27 @@ export interface ChatMessage {
   createdAt: string;
 }
 
+export interface ChatReadReceipt {
+  messageId: string;
+  userId: string;
+  readAt: string;
+}
+
+export type ChatReadScope =
+  | {
+      type: "conversation";
+    }
+  | {
+      type: "house";
+      houseId: number;
+    };
+
+interface MarkMessagesReadInput {
+  conversationId: string;
+  readerId: string;
+  scope: ChatReadScope;
+}
+
 interface SendTextInput {
   senderId: string;
   recipientId: string;
@@ -119,6 +140,12 @@ interface ChatStore {
   conversations: ChatConversation[];
 
   messages: ChatMessage[];
+
+  readReceipts: ChatReadReceipt[];
+
+  markMessagesRead: (
+    input: MarkMessagesReadInput
+  ) => void;
 
   sendTextMessage: (
     input: SendTextInput
@@ -285,6 +312,109 @@ export function hasHouseReference(
 
 /*
 |--------------------------------------------------------------------------
+| READ STATUS HELPERS
+|--------------------------------------------------------------------------
+*/
+
+function isMessageInReadScope(
+  message: ChatMessage,
+  scope: ChatReadScope
+) {
+  if (scope.type === "conversation") {
+    return true;
+  }
+
+  return (
+    message.contextType === "house" &&
+    message.contextId === scope.houseId
+  );
+}
+
+export function getUnreadMessageCount(
+  messages: ChatMessage[],
+  readReceipts: ChatReadReceipt[],
+  conversationId: string,
+  readerId: string,
+  scope: ChatReadScope = {
+    type: "conversation",
+  }
+) {
+  const readMessageIds = new Set(
+    readReceipts
+      .filter(
+        (receipt) =>
+          receipt.userId === readerId
+      )
+      .map(
+        (receipt) =>
+          receipt.messageId
+      )
+  );
+
+  return messages.filter(
+    (message) =>
+      message.conversationId ===
+        conversationId &&
+      message.senderId !== readerId &&
+      message.type !== "system" &&
+      isMessageInReadScope(
+        message,
+        scope
+      ) &&
+      !readMessageIds.has(
+        message.id
+      )
+  ).length;
+}
+
+export function getTotalUnreadCount(
+  conversations: ChatConversation[],
+  messages: ChatMessage[],
+  readReceipts: ChatReadReceipt[],
+  readerId: string
+) {
+  const myConversationIds = new Set(
+    conversations
+      .filter(
+        (conversation) =>
+          conversation.participantAId ===
+            readerId ||
+          conversation.participantBId ===
+            readerId
+      )
+      .map(
+        (conversation) =>
+          conversation.id
+      )
+  );
+
+  const readMessageIds = new Set(
+    readReceipts
+      .filter(
+        (receipt) =>
+          receipt.userId === readerId
+      )
+      .map(
+        (receipt) =>
+          receipt.messageId
+      )
+  );
+
+  return messages.filter(
+    (message) =>
+      myConversationIds.has(
+        message.conversationId
+      ) &&
+      message.senderId !== readerId &&
+      message.type !== "system" &&
+      !readMessageIds.has(
+        message.id
+      )
+  ).length;
+}
+
+/*
+|--------------------------------------------------------------------------
 | Store
 |--------------------------------------------------------------------------
 */
@@ -295,6 +425,88 @@ export const useChatStore =
       conversations: [],
 
       messages: [],
+
+      readReceipts: [],
+
+      markMessagesRead: (input) => {
+        set((state) => {
+          const conversation =
+            state.conversations.find(
+              (item) =>
+                item.id ===
+                input.conversationId
+            );
+
+          if (!conversation) {
+            return state;
+          }
+
+          const isParticipant =
+            conversation.participantAId ===
+              input.readerId ||
+            conversation.participantBId ===
+              input.readerId;
+
+          if (!isParticipant) {
+            return state;
+          }
+
+          const alreadyRead = new Set(
+            state.readReceipts
+              .filter(
+                (receipt) =>
+                  receipt.userId ===
+                  input.readerId
+              )
+              .map(
+                (receipt) =>
+                  receipt.messageId
+              )
+          );
+
+          const unreadMessages =
+            state.messages.filter(
+              (message) =>
+                message.conversationId ===
+                  conversation.id &&
+                message.senderId !==
+                  input.readerId &&
+                message.type !==
+                  "system" &&
+                isMessageInReadScope(
+                  message,
+                  input.scope
+                ) &&
+                !alreadyRead.has(
+                  message.id
+                )
+            );
+
+          if (
+            unreadMessages.length === 0
+          ) {
+            return state;
+          }
+
+          const readAt =
+            new Date().toISOString();
+
+          return {
+            readReceipts: [
+              ...state.readReceipts,
+              ...unreadMessages.map(
+                (message) => ({
+                  messageId:
+                    message.id,
+                  userId:
+                    input.readerId,
+                  readAt,
+                })
+              ),
+            ],
+          };
+        });
+      },
 
       sendTextMessage: (
         input

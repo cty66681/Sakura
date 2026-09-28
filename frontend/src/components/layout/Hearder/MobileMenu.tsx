@@ -6,6 +6,13 @@ import {
   useState,
 } from "react";
 import Link from "next/link";
+
+import {
+  MOCK_CURRENT_USER_ID,
+  getTotalUnreadCount,
+  useChatStore,
+} from "@/store/chatStore";
+
 import {
   usePathname,
 } from "next/navigation";
@@ -67,6 +74,25 @@ const navItems = [
 
 export default function MobileMenu() {
   const pathname = usePathname();
+
+  const conversations = useChatStore(
+    (state) => state.conversations
+  );
+
+  const messages = useChatStore(
+    (state) => state.messages
+  );
+
+  const readReceipts = useChatStore(
+    (state) => state.readReceipts
+  );
+
+  const chatUnreadCount = getTotalUnreadCount(
+    conversations,
+    messages,
+    readReceipts,
+    MOCK_CURRENT_USER_ID
+  );
 
   const [open, setOpen] =
     useState(false);
@@ -443,20 +469,25 @@ export default function MobileMenu() {
                   </div>
                 </div>
 
-                <span
-                  className="
-                    shrink-0
-                    rounded-full
-                    bg-rose-500
-                    px-2
-                    py-1
-                    text-[10px]
-                    font-black
-                    text-white
-                  "
-                >
-                  2
-                </span>
+                {chatUnreadCount > 0 && (
+                  <span
+                    aria-label={`${chatUnreadCount} 条未读消息`}
+                    className="
+                      shrink-0
+                      rounded-full
+                      bg-rose-500
+                      px-2
+                      py-1
+                      text-[10px]
+                      font-black
+                      text-white
+                    "
+                  >
+                    {chatUnreadCount > 99
+                      ? "99+"
+                      : chatUnreadCount}
+                  </span>
+                )}
               </Link>
 
               {/* Main Navigation */}

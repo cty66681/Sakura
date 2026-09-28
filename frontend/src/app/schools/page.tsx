@@ -486,6 +486,16 @@ export default function SchoolsPage() {
   ] =
     useState(false);
 
+  const [selectedRegion, setSelectedRegion] =
+  useState("东京");
+
+  const [selectedMajor, setSelectedMajor] =
+    useState("IT・AI");
+
+  const selectedMajorData = majors.find(
+    (major) => major.name === selectedMajor
+  );
+
   const handleSearch = (
     event?: FormEvent
   ) => {
@@ -787,218 +797,386 @@ export default function SchoolsPage() {
         </Container>
       </section>
 
-      {/* =========================================================
-          QUICK START
-      ========================================================= */}
+      
+    {/* =========================================================
+        QUICK START — 紧凑版
+    ========================================================= */}
 
-      <section className="py-20">
-        <Container>
-          <SectionHeader
-            badge="START HERE"
-            title="你想从哪里开始？"
-            description="已经知道地区或者专业的话，可以直接进入对应学校类型继续筛选。"
-          />
+    <section className="py-12 sm:py-14">
+      <Container>
+        <SectionHeader
+          badge="START HERE"
+          title="你想从哪里开始？"
+          description="选择地区或专业，再进入对应的学校列表。"
+        />
 
-          <div className="mt-9 grid gap-8 lg:grid-cols-2">
-            {/* REGION */}
+        <div className="mt-6 grid gap-4 lg:grid-cols-2">
+          {/* 按地区找 */}
+          <div
+            className="
+              rounded-2xl
+              border
+              border-slate-200
+              bg-white
+              p-5
+              shadow-sm
+              sm:p-6
+            "
+          >
+            <div className="flex items-center gap-3">
+              <div
+                className="
+                  flex
+                  h-10
+                  w-10
+                  shrink-0
+                  items-center
+                  justify-center
+                  rounded-xl
+                  bg-blue-50
+                  text-blue-600
+                "
+              >
+                <MapPin size={20} />
+              </div>
 
-            <div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                    <MapPin
-                      size={21}
-                    />
-                  </div>
+              <div>
+                <h3 className="font-bold text-slate-900">
+                  按地区找
+                </h3>
 
-                  <div>
-                    <h3 className="text-lg font-black text-slate-900">
-                      按地区找
-                    </h3>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  先选想去的地区
+                </p>
+              </div>
+            </div>
 
-                    <p className="mt-1 text-xs text-slate-400">
-                      大学・大学院 / 语言学校 / 专门学校
-                    </p>
-                  </div>
-                </div>
+            {/* 热门地区：只显示选择按钮 */}
+            <div className="mt-5 flex flex-wrap gap-2">
+              {popularRegions.map((region) => {
+                const active =
+                  selectedRegion === region.name;
 
-                <button
-                  type="button"
-                  onClick={() =>
-                    setShowAllRegions(
-                      (value) =>
-                        !value
-                    )
-                  }
-                  className="flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 transition hover:border-blue-300 hover:text-blue-600"
+                return (
+                  <button
+                    key={region.name}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() =>
+                      setSelectedRegion(region.name)
+                    }
+                    className={`
+                      min-h-10
+                      rounded-xl
+                      border
+                      px-4
+                      py-2
+                      text-sm
+                      font-semibold
+                      transition
+                      ${
+                        active
+                          ? "border-blue-600 bg-blue-600 text-white"
+                          : "border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:bg-blue-50"
+                      }
+                    `}
+                  >
+                    {region.name}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* 只为当前选择的地区展示三个入口 */}
+            <div
+              className="
+                mt-5
+                rounded-xl
+                border
+                border-slate-100
+                bg-slate-50
+                p-4
+              "
+            >
+              <p className="mb-3 text-sm font-bold text-slate-800">
+                {selectedRegion} · 选择学校类型
+              </p>
+
+              <div className="grid gap-2 sm:grid-cols-3">
+                <SchoolRouteButton
+                  href={`/schools/university?region=${encodeURIComponent(
+                    selectedRegion
+                  )}`}
+                  theme="blue"
                 >
-                  {showAllRegions
-                    ? "收起"
-                    : "全国47地区"}
+                  大学・大学院
+                </SchoolRouteButton>
 
-                  {showAllRegions ? (
-                    <ChevronUp
-                      size={14}
-                    />
-                  ) : (
-                    <ChevronDown
-                      size={14}
-                    />
-                  )}
-                </button>
+                <SchoolRouteButton
+                  href={`/schools/language?region=${encodeURIComponent(
+                    selectedRegion
+                  )}`}
+                  theme="emerald"
+                >
+                  语言学校
+                </SchoolRouteButton>
+
+                <SchoolRouteButton
+                  href={`/schools/college?region=${encodeURIComponent(
+                    selectedRegion
+                  )}`}
+                  theme="orange"
+                >
+                  专门学校
+                </SchoolRouteButton>
               </div>
+            </div>
 
-              {/* Popular */}
+            {/* 全国地区默认折叠 */}
+            <button
+              type="button"
+              aria-expanded={showAllRegions}
+              onClick={() =>
+                setShowAllRegions((current) => !current)
+              }
+              className="
+                mt-4
+                flex
+                min-h-10
+                w-full
+                items-center
+                justify-center
+                gap-2
+                rounded-xl
+                border
+                border-slate-200
+                bg-white
+                px-4
+                text-sm
+                font-semibold
+                text-slate-600
+                transition
+                hover:border-blue-300
+                hover:text-blue-600
+              "
+            >
+              {showAllRegions
+                ? "收起地区"
+                : "查看全国 47 都道府县"}
 
-              <div className="mt-6 space-y-3">
-                {popularRegions.map(
-                  (region) => (
-                    <RegionItem
-                      key={
-                        region.name
-                      }
-                      prefecture={
-                        region.name
-                      }
-                      description={
-                        region.description
-                      }
-                    />
-                  )
-                )}
-              </div>
-
-              {/* All Japan */}
-
-              {showAllRegions && (
-                <div className="mt-7 border-t border-slate-100 pt-7">
-                  <div className="mb-6">
-                    <p className="text-sm font-black text-slate-900">
-                      日本全国 47 都道府县
-                    </p>
-
-                    <p className="mt-1 text-xs text-slate-400">
-                      点击地区后直接选择学校类型
-                    </p>
-                  </div>
-
-                  <div className="space-y-7">
-                    {japanRegions.map(
-                      (group) => (
-                        <div
-                          key={
-                            group.name
-                          }
-                        >
-                          <p className="mb-3 text-xs font-black tracking-wider text-slate-400">
-                            {
-                              group.name
-                            }
-                          </p>
-
-                          <div className="grid gap-2 sm:grid-cols-2">
-                            {group.prefectures.map(
-                              (
-                                prefecture
-                              ) => (
-                                <PrefectureItem
-                                  key={
-                                    prefecture
-                                  }
-                                  prefecture={
-                                    prefecture
-                                  }
-                                />
-                              )
-                            )}
-                          </div>
-                        </div>
-                      )
-                    )}
-                  </div>
-                </div>
+              {showAllRegions ? (
+                <ChevronUp size={16} />
+              ) : (
+                <ChevronDown size={16} />
               )}
-            </div>
+            </button>
 
-            {/* MAJOR */}
-
-            <div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-50 text-orange-600">
-                  <BriefcaseBusiness
-                    size={21}
-                  />
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-black text-slate-900">
-                    按专业找
-                  </h3>
-
-                  <p className="mt-1 text-xs text-slate-400">
-                    大学・大学院 / 专门学校
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-6 space-y-3">
-                {majors.map(
-                  (major) => (
-                    <div
-                      key={
-                        major.name
-                      }
-                      className="rounded-2xl border border-slate-200 p-4 transition hover:border-orange-200"
+            {showAllRegions && (
+              <div
+                className="
+                  mt-4
+                  max-h-[360px]
+                  space-y-5
+                  overflow-y-auto
+                  rounded-xl
+                  border
+                  border-slate-200
+                  bg-slate-50
+                  p-4
+                "
+              >
+                {japanRegions.map((group) => (
+                  <div key={group.name}>
+                    <p
+                      className="
+                        mb-2
+                        text-xs
+                        font-bold
+                        text-slate-500
+                      "
                     >
-                      <div className="flex items-start gap-3">
-                        <div className="text-xl">
-                          {
-                            major.icon
-                          }
-                        </div>
+                      {group.name}
+                    </p>
 
-                        <div className="min-w-0 flex-1">
-                          <p className="font-black text-slate-900">
-                            {
-                              major.name
-                            }
-                          </p>
+                    <div className="flex flex-wrap gap-2">
+                      {group.prefectures.map(
+                        (prefecture) => {
+                          const active =
+                            selectedRegion === prefecture;
 
-                          <p className="mt-1 text-xs leading-5 text-slate-400">
-                            {
-                              major.description
-                            }
-                          </p>
+                          return (
+                            <button
+                              key={prefecture}
+                              type="button"
+                              aria-pressed={active}
+                              onClick={() => {
+                                setSelectedRegion(
+                                  prefecture
+                                );
 
-                          <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                            <SchoolRouteButton
-                              href={
-                                major.universityHref
-                              }
-                              theme="blue"
+                                setShowAllRegions(false);
+                              }}
+                              className={`
+                                min-h-9
+                                rounded-lg
+                                border
+                                px-3
+                                py-1.5
+                                text-xs
+                                font-semibold
+                                transition
+                                ${
+                                  active
+                                    ? "border-blue-600 bg-blue-600 text-white"
+                                    : "border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-600"
+                                }
+                              `}
                             >
-                              大学・大学院
-                            </SchoolRouteButton>
-
-                            <SchoolRouteButton
-                              href={
-                                major.collegeHref
-                              }
-                              theme="orange"
-                            >
-                              专门学校
-                            </SchoolRouteButton>
-                          </div>
-                        </div>
-                      </div>
+                              {prefecture}
+                            </button>
+                          );
+                        }
+                      )}
                     </div>
-                  )
-                )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 按专业找 */}
+          <div
+            className="
+              rounded-2xl
+              border
+              border-slate-200
+              bg-white
+              p-5
+              shadow-sm
+              sm:p-6
+            "
+          >
+            <div className="flex items-center gap-3">
+              <div
+                className="
+                  flex
+                  h-10
+                  w-10
+                  shrink-0
+                  items-center
+                  justify-center
+                  rounded-xl
+                  bg-orange-50
+                  text-orange-600
+                "
+              >
+                <BriefcaseBusiness size={20} />
+              </div>
+
+              <div>
+                <h3 className="font-bold text-slate-900">
+                  按专业找
+                </h3>
+
+                <p className="mt-0.5 text-xs text-slate-500">
+                  选择感兴趣的学习方向
+                </p>
               </div>
             </div>
+
+            {/* 只展示专业选择按钮 */}
+            <div className="mt-5 flex flex-wrap gap-2">
+              {majors.map((major) => {
+                const active =
+                  selectedMajor === major.name;
+
+                return (
+                  <button
+                    key={major.name}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() =>
+                      setSelectedMajor(major.name)
+                    }
+                    className={`
+                      inline-flex
+                      min-h-10
+                      items-center
+                      gap-2
+                      rounded-xl
+                      border
+                      px-3
+                      py-2
+                      text-sm
+                      font-semibold
+                      transition
+                      ${
+                        active
+                          ? "border-orange-500 bg-orange-500 text-white"
+                          : "border-slate-200 bg-white text-slate-600 hover:border-orange-300 hover:bg-orange-50"
+                      }
+                    `}
+                  >
+                    <span>{major.icon}</span>
+                    {major.name}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* 当前选择的专业 */}
+            {selectedMajorData && (
+              <div
+                className="
+                  mt-5
+                  rounded-xl
+                  border
+                  border-slate-100
+                  bg-slate-50
+                  p-4
+                "
+              >
+                <p className="text-sm font-bold text-slate-800">
+                  {selectedMajorData.name}
+                </p>
+
+                <p
+                  className="
+                    mt-1
+                    text-xs
+                    leading-5
+                    text-slate-500
+                  "
+                >
+                  {selectedMajorData.description}
+                </p>
+
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <SchoolRouteButton
+                    href={
+                      selectedMajorData.universityHref
+                    }
+                    theme="blue"
+                  >
+                    大学・大学院
+                  </SchoolRouteButton>
+
+                  <SchoolRouteButton
+                    href={
+                      selectedMajorData.collegeHref
+                    }
+                    theme="orange"
+                  >
+                    专门学校
+                  </SchoolRouteButton>
+                </div>
+              </div>
+            )}
           </div>
-        </Container>
-      </section>
+        </div>
+      </Container>
+    </section>
+
 
       {/* =========================================================
           AI

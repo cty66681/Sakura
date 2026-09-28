@@ -1,451 +1,329 @@
+
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-
 import {
   ArrowUpRight,
-  BookOpen,
-  Bot,
-  CircleAlert,
+  BriefcaseBusiness,
+  ChevronDown,
+  Compass,
   GraduationCap,
-  Sparkles,
+  House,
+  MapPinned,
 } from "lucide-react";
 
-const mainCards = [
-  {
-    title: "学校中心",
-    description:
-      "大学・大学院、语言学校、专门学校，一站查询。",
-    href: "/schools",
-    icon: GraduationCap,
-    badge: "热门",
-  },
-  {
-    title: "在日经验",
-    description:
-      "签证、生活、手续、学习与工作的真实经验。",
-    href: "/experience",
-    icon: BookOpen,
-    badge: "实用",
-  },
-  {
-    title: "避坑提醒",
-    description:
-      "租房、求职、合同、诈骗等常见风险信息。",
-    href: "/scam",
-    icon: CircleAlert,
-    badge: "必看",
-  },
-];
+type ScenarioId = "arrival" | "moving" | "career" | "study";
 
-const topics = [
+const scenarios = [
   {
-    title: "东京语言学校怎么选？",
-    href: "/schools/language?region=东京",
-    type: "学校",
+    id: "arrival",
+    title: "刚来日本",
+    description: "生活手续，从这里慢慢理清",
+    icon: MapPinned,
+    links: [
+      {
+        label: "初到日本的生活经验",
+        href: `/search?q=${encodeURIComponent("日本生活")}`,
+      },
+      {
+        label: "办理手机与银行卡",
+        href: `/search?q=${encodeURIComponent("手机 银行卡")}`,
+      },
+      {
+        label: "了解常见骗局",
+        href: "/scam",
+      },
+    ],
   },
   {
-    title: "日本租房前要注意什么？",
-    href: "/scam?q=租房",
-    type: "避坑",
+    id: "moving",
+    title: "准备搬家",
+    description: "找房、算费用、看注意事项",
+    icon: House,
+    links: [
+      {
+        label: "查看房源",
+        href: "/houses",
+      },
+      {
+        label: "看看租房经验",
+        href: `/search?q=${encodeURIComponent("租房经验")}`,
+      },
+      {
+        label: "租房前需要避开的坑",
+        href: `/search?q=${encodeURIComponent("租房避坑")}`,
+      },
+    ],
   },
   {
-    title: "第一次在日本生活要准备什么？",
-    href: "/experience?q=日本生活",
-    type: "经验",
+    id: "career",
+    title: "想换工作",
+    description: "职位、面试与求职风险",
+    icon: BriefcaseBusiness,
+    links: [
+      {
+        label: "查看招聘信息",
+        href: "/jobs",
+      },
+      {
+        label: "看看求职经验",
+        href: `/search?q=${encodeURIComponent("求职经验")}`,
+      },
+      {
+        label: "了解招聘风险",
+        href: `/search?q=${encodeURIComponent("招聘避坑")}`,
+      },
+    ],
   },
-];
+  {
+    id: "study",
+    title: "准备升学",
+    description: "选学校、查专业与报考信息",
+    icon: GraduationCap,
+    links: [
+      {
+        label: "查看学校中心",
+        href: "/schools",
+      },
+      {
+        label: "了解语言学校",
+        href: "/schools/language",
+      },
+      {
+        label: "了解专门学校",
+        href: "/schools/college",
+      },
+    ],
+  },
+] satisfies {
+  id: ScenarioId;
+  title: string;
+  description: string;
+  icon: typeof Compass;
+  links: { label: string; href: string }[];
+}[];
 
 export default function HeroStats() {
-  return (
-    <div className="w-full max-w-[540px]">
-      {/* Top Feature */}
+  const [expanded, setExpanded] = useState(false);
+  const [selected, setSelected] =
+    useState<ScenarioId | null>(null);
 
-      <div
+  const activeScenario = scenarios.find(
+    (item) => item.id === selected
+  );
+
+  return (
+    <section
+      className="
+        w-full
+        rounded-[22px]
+        border
+        border-[#F0E0D9]
+        bg-[#FFF5F0]
+        p-4
+        sm:p-5
+      "
+    >
+      <button
+        type="button"
+        aria-expanded={expanded}
+        aria-controls="sakura-life-guide"
+        onClick={() => setExpanded((value) => !value)}
         className="
-          relative
-          overflow-hidden
-          rounded-[30px]
-          border
-          border-white/10
-          bg-white/[0.055]
-          p-7
-          shadow-2xl
-          shadow-black/20
-          backdrop-blur-2xl
+          flex
+          w-full
+          items-center
+          gap-3
+          text-left
         "
       >
-        {/* Glow */}
-
-        <div
+        <span
           className="
-            pointer-events-none
-            absolute
-            -right-20
-            -top-20
-            h-56
-            w-56
-            rounded-full
-            bg-blue-500/20
-            blur-3xl
+            flex
+            h-11
+            w-11
+            shrink-0
+            items-center
+            justify-center
+            rounded-2xl
+            bg-[#FBE3DD]
+            text-[#D7505D]
           "
-        />
+        >
+          <Compass size={22} strokeWidth={1.8} />
+        </span>
 
-        <div
-          className="
-            pointer-events-none
-            absolute
-            -bottom-24
-            left-10
-            h-48
-            w-48
-            rounded-full
-            bg-violet-500/10
-            blur-3xl
-          "
-        />
-
-        <div className="relative">
-          <div className="flex items-center justify-between">
-            <div
-              className="
-                inline-flex
-                items-center
-                gap-2
-                rounded-full
-                border
-                border-white/10
-                bg-white/[0.06]
-                px-3
-                py-1.5
-                text-xs
-                font-bold
-                text-slate-300
-              "
-            >
-              <Sparkles
-                size={14}
-                className="text-blue-400"
-              />
-
-              Sakura 导航
-            </div>
-
-            <span className="text-xs font-semibold text-slate-500">
-              日本生活常用入口
-            </span>
-          </div>
-
-          <h2
+        <span className="min-w-0 flex-1">
+          <span
             className="
-              mt-6
-              max-w-[390px]
-              text-3xl
-              font-black
-              leading-tight
-              tracking-tight
-              text-white
+              block
+              text-[15px]
+              font-bold
+              text-[#30343B]
             "
           >
-            不知道从哪里开始？
-          </h2>
+            不知道从哪开始？
+          </span>
 
-          <p
+          <span
             className="
-              mt-3
-              max-w-[430px]
-              text-sm
-              leading-6
-              text-slate-400
+              mt-1
+              block
+              text-xs
+              leading-5
+              text-[#85818A]
+              sm:text-sm
             "
           >
-            从学校、生活经验和避坑信息开始，
-            快速找到现在最需要的内容。
+            按你现在的情况，找到需要的信息
+          </span>
+        </span>
+
+        <span
+          className="
+            flex
+            h-9
+            w-9
+            shrink-0
+            items-center
+            justify-center
+            rounded-full
+            bg-white
+            text-[#D7505D]
+          "
+        >
+          <ChevronDown
+            size={20}
+            className={`transition-transform duration-200 ${
+              expanded ? "rotate-180" : ""
+            }`}
+          />
+        </span>
+      </button>
+
+      {expanded && (
+        <div
+          id="sakura-life-guide"
+          className="
+            mt-5
+            border-t
+            border-[#EBDCD6]
+            pt-5
+          "
+        >
+          <p className="mb-3 text-sm font-medium text-[#62656B]">
+            选一个最接近你当前情况的：
           </p>
 
-          <div className="mt-7 grid gap-3">
-            {mainCards.map((item) => {
+          <div className="grid gap-2 sm:grid-cols-4">
+            {scenarios.map((item) => {
               const Icon = item.icon;
+              const isSelected = selected === item.id;
 
               return (
-                <Link
-                  key={item.title}
-                  href={item.href}
-                  className="
-                    group
+                <button
+                  key={item.id}
+                  type="button"
+                  aria-pressed={isSelected}
+                  onClick={() => setSelected(item.id)}
+                  className={`
                     flex
-                    items-center
-                    gap-4
-                    rounded-2xl
+                    min-h-[116px]
+                    flex-col
+                    items-start
+                    rounded-xl
                     border
-                    border-white/[0.07]
-                    bg-white/[0.035]
-                    p-4
+                    p-3.5
+                    text-left
                     transition
-                    duration-300
-                    hover:border-blue-400/25
-                    hover:bg-white/[0.065]
-                  "
+                    ${
+                      isSelected
+                        ? "border-[#E6A5A6] bg-white shadow-sm"
+                        : "border-[#EFE5E1] bg-white/75 hover:border-[#E6B5B3] hover:bg-white"
+                    }
+                  `}
                 >
-                  <div
-                    className="
-                      flex
-                      h-11
-                      w-11
-                      shrink-0
-                      items-center
-                      justify-center
-                      rounded-2xl
-                      bg-white/[0.06]
-                      text-slate-300
-                      transition
-                      group-hover:bg-blue-500/15
-                      group-hover:text-blue-300
-                    "
-                  >
-                    <Icon size={20} />
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-bold text-white">
-                        {item.title}
-                      </h3>
-
-                      <span
-                        className="
-                          rounded-full
-                          bg-blue-500/10
-                          px-2
-                          py-0.5
-                          text-[10px]
-                          font-bold
-                          text-blue-300
-                        "
-                      >
-                        {item.badge}
-                      </span>
-                    </div>
-
-                    <p
-                      className="
-                        mt-1
-                        text-xs
-                        leading-5
-                        text-slate-500
-                      "
-                    >
-                      {item.description}
-                    </p>
-                  </div>
-
-                  <ArrowUpRight
-                    size={17}
-                    className="
-                      shrink-0
-                      text-slate-600
-                      transition
-                      group-hover:-translate-y-0.5
-                      group-hover:translate-x-0.5
-                      group-hover:text-blue-400
-                    "
+                  <Icon
+                    size={20}
+                    strokeWidth={1.8}
+                    className={
+                      isSelected
+                        ? "text-[#D7505D]"
+                        : "text-[#8E8180]"
+                    }
                   />
-                </Link>
+
+                  <span className="mt-3 text-sm font-bold text-[#30343B]">
+                    {item.title}
+                  </span>
+
+                  <span className="mt-1 text-xs leading-5 text-[#8A8990]">
+                    {item.description}
+                  </span>
+                </button>
               );
             })}
           </div>
-        </div>
-      </div>
 
-      {/* Bottom */}
-
-      <div className="mt-4 grid gap-4 lg:grid-cols-[1.35fr_0.65fr]">
-        {/* Today */}
-
-        <div
-          className="
-            rounded-[26px]
-            border
-            border-white/10
-            bg-white/[0.045]
-            p-5
-            backdrop-blur-xl
-          "
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p
-                className="
-                  text-xs
-                  font-bold
-                  uppercase
-                  tracking-[0.16em]
-                  text-slate-500
-                "
-              >
-                Today
-              </p>
-
-              <h3 className="mt-1 font-black text-white">
-                今日值得看
-              </h3>
-            </div>
-
-            <Sparkles
-              size={17}
-              className="text-amber-400"
-            />
-          </div>
-
-          <div className="mt-4 space-y-1">
-            {topics.map((item) => (
-              <Link
-                key={item.title}
-                href={item.href}
-                className="
-                  group
-                  flex
-                  items-center
-                  gap-3
-                  rounded-xl
-                  px-2
-                  py-2.5
-                  transition
-                  hover:bg-white/[0.05]
-                "
-              >
-                <span
-                  className="
-                    shrink-0
-                    rounded-md
-                    bg-white/[0.06]
-                    px-2
-                    py-1
-                    text-[10px]
-                    font-bold
-                    text-slate-400
-                  "
-                >
-                  {item.type}
-                </span>
-
-                <span
-                  className="
-                    min-w-0
-                    flex-1
-                    truncate
-                    text-xs
-                    text-slate-400
-                    transition
-                    group-hover:text-white
-                  "
-                >
-                  {item.title}
-                </span>
-
-                <ArrowUpRight
-                  size={13}
-                  className="
-                    shrink-0
-                    text-slate-600
-                    transition
-                    group-hover:text-blue-400
-                  "
-                />
-              </Link>
-            ))}
-          </div>
-        </div>
-
-        {/* AI */}
-
-        <Link
-          href="/ai-tools"
-          className="
-            group
-            relative
-            overflow-hidden
-            rounded-[26px]
-            border
-            border-blue-400/15
-            bg-gradient-to-b
-            from-blue-500/10
-            to-violet-500/[0.06]
-            p-5
-            backdrop-blur-xl
-            transition
-            hover:border-blue-400/30
-          "
-        >
-          <div
-            className="
-              absolute
-              -right-10
-              -top-10
-              h-28
-              w-28
-              rounded-full
-              bg-blue-500/15
-              blur-2xl
-            "
-          />
-
-          <div className="relative flex h-full flex-col">
+          {activeScenario && (
             <div
               className="
-                flex
-                h-10
-                w-10
-                items-center
-                justify-center
-                rounded-2xl
-                bg-blue-500/15
-                text-blue-300
+                mt-4
+                rounded-xl
+                border
+                border-[#F0E3DF]
+                bg-white
+                p-4
               "
             >
-              <Bot size={19} />
-            </div>
-
-            <div className="mt-auto pt-8">
-              <p className="text-xs font-bold text-blue-300">
-                Sakura AI
-              </p>
-
-              <h3
-                className="
-                  mt-1
-                  text-lg
-                  font-black
-                  leading-snug
-                  text-white
-                "
-              >
-                不会找？
-                <br />
-                直接问 AI
+              <h3 className="text-sm font-bold text-[#343941]">
+                {activeScenario.title}，可以先看看
               </h3>
 
-              <div
-                className="
-                  mt-4
-                  flex
-                  items-center
-                  gap-1
-                  text-xs
-                  font-bold
-                  text-slate-400
-                  transition
-                  group-hover:text-blue-300
-                "
-              >
-                开始使用
+              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                {activeScenario.links.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className="
+                      group
+                      flex
+                      min-h-12
+                      items-center
+                      justify-between
+                      gap-3
+                      rounded-lg
+                      bg-[#FAF8F6]
+                      px-3
+                      py-2.5
+                      text-sm
+                      font-medium
+                      text-[#555961]
+                      transition
+                      hover:bg-[#FFF0EC]
+                      hover:text-[#C74654]
+                    "
+                  >
+                    <span>{link.label}</span>
 
-                <ArrowUpRight size={13} />
+                    <ArrowUpRight
+                      size={16}
+                      className="
+                        shrink-0
+                        text-[#C57E81]
+                        transition
+                        group-hover:-translate-y-0.5
+                        group-hover:translate-x-0.5
+                      "
+                    />
+                  </Link>
+                ))}
               </div>
             </div>
-          </div>
-        </Link>
-      </div>
-    </div>
+          )}
+        </div>
+      )}
+    </section>
   );
 }

@@ -1,15 +1,21 @@
+
 "use client";
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 
 import Container from "@/components/layout/Container";
 import Section from "@/components/layout/Section";
 import SectionHeader from "@/components/ui/SectionHeader";
 
 import JobCard from "../JobCard";
-
 import { jobs } from "@/data/jobs";
+
+const PREVIEW_LIMIT = 3;
+
+const HIGH_MONTHLY_SALARY = 700000;
+const HIGH_ANNUAL_SALARY = HIGH_MONTHLY_SALARY * 12;
 
 const tabs = [
   "全部",
@@ -20,6 +26,14 @@ const tabs = [
 ] as const;
 
 type Tab = (typeof tabs)[number];
+
+const moreLinks: Record<Tab, string> = {
+  全部: "/jobs",
+  IT: "/jobs?category=IT",
+  正社員: "/jobs?employmentType=正社員",
+  高薪: "/jobs?salary=high",
+  东京: "/jobs?region=东京",
+};
 
 /*
 |--------------------------------------------------------------------------
@@ -36,11 +50,18 @@ type Tab = (typeof tabs)[number];
 |   category?: string,
 |   employmentType?: string,
 |   region?: string,
-|   salary?: string,
-|   limit?: 6
+|   salaryMin?: number,
+|   moderationStatus: "approved",
+|   limit: 3
 | }
 |
-| 当前阶段使用 "@/data/jobs" mock 数据前端筛选。
+| 当前使用 "@/data/jobs" Mock 数据。
+|
+| 正式接入后台后：
+| - 只返回审核通过且允许公开展示的职位
+| - 确认岗位仍在招聘且未过展示有效期
+| - 根据真实薪资类型与金额进行筛选
+| - 认证标识必须来自实际认证结果
 |
 |--------------------------------------------------------------------------
 */
@@ -49,279 +70,297 @@ export default function JobSection() {
   const [activeTab, setActiveTab] =
     useState<Tab>("全部");
 
-  const list = useMemo(() => {
-    const filtered = jobs.filter((job) => {
-      if (activeTab === "全部") {
-        return true;
-      }
+  const filteredJobs = useMemo(() => {
+    return jobs
+      .filter(
+        (job) =>
+          job.moderationStatus === "approved"
+      )
+      .filter((job) => {
+        switch (activeTab) {
+          case "全部":
+            return true;
 
-      if (activeTab === "IT") {
-        const text = [
-          job.title,
-          ...(job.tags ?? []),
-        ]
-          .join(" ")
-          .toLowerCase();
+          case "IT":
+            return job.category === "it";
 
-        return [
-          "it",
-          "java",
-          "python",
-          "react",
-          "frontend",
-          "backend",
-          "engineer",
-          "开发",
-          "工程师",
-          "ai",
-        ].some((keyword) =>
-          text.includes(keyword.toLowerCase())
-        );
-      }
+          case "正社員":
+            return (
+              job.employmentType === "正社員"
+            );
 
-      if (activeTab === "正社員") {
-        const text = [
-          job.title,
-          ...(job.tags ?? []),
-        ].join(" ");
+          case "高薪": {
+            if (
+              typeof job.salaryMin !== "number"
+            ) {
+              return false;
+            }
 
-        return (
-          text.includes("正社員") ||
-          text.includes("正社员")
-        );
-      }
+            if (job.salaryType === "monthly") {
+              return (
+                job.salaryMin >=
+                HIGH_MONTHLY_SALARY
+              );
+            }
 
-      if (activeTab === "高薪") {
-        const text = [
-          job.salary,
-          ...(job.tags ?? []),
-        ].join(" ");
+            if (job.salaryType === "annual") {
+              return (
+                job.salaryMin >=
+                HIGH_ANNUAL_SALARY
+              );
+            }
 
-        return (
-          text.includes("高薪") ||
-          text.includes("700") ||
-          text.includes("800") ||
-          text.includes("900") ||
-          text.includes("1000")
-        );
-      }
+            // 时薪、日薪及项目报酬没有
+            // 统一换算依据，暂不纳入此筛选。
+            return false;
+          }
 
-      if (activeTab === "东京") {
-        return (
-          job.location?.includes("东京") ??
-          false
-        );
-      }
+          case "东京":
+            return (
+              job.location.includes("东京") ||
+              job.location.includes("東京")
+            );
 
-      return true;
-    });
-
-    return filtered.slice(0, 6);
+          default:
+            return true;
+        }
+      })
+      .sort((a, b) =>
+        b.publishTime.localeCompare(a.publishTime)
+      );
   }, [activeTab]);
 
-  const getMoreHref = () => {
-    switch (activeTab) {
-      case "IT":
-        return "/jobs?category=IT";
+  const visibleJobs = filteredJobs.slice(
+    0,
+    PREVIEW_LIMIT
+  );
 
-      case "正社員":
-        return "/jobs?employmentType=正社員";
-
-      case "高薪":
-        return "/jobs?salary=high";
-
-      case "东京":
-        return "/jobs?region=东京";
-
-      default:
-        return "/jobs";
-    }
-  };
+  const totalCount = filteredJobs.length;
 
   return (
     <Section
       className="
-        relative
-        overflow-hidden
+        border-t
+        border-[#F0EBE8]
         bg-white
       "
     >
-      <div
-        className="
-          pointer-events-none
-          absolute
-          -right-40
-          top-24
-          h-[380px]
-          w-[380px]
-          rounded-full
-          bg-blue-100/35
-          blur-3xl
-        "
-      />
-
       <Container>
-        <div className="relative z-10">
-          <SectionHeader
-            badge="工作"
-            title="也看看，有没有更适合你的机会"
-            description="整理在日华人常关注的 IT、正社員、高薪及东京职位，找工作时可以顺手看看。"
-            href="/jobs"
-            actionText="查看全部工作"
-          />
+        <SectionHeader
+          badge="工作机会"
+          title="看看有没有适合你的工作"
+          description="浏览日本各地的职位信息，按行业、雇佣形式、薪资和地区快速查看。"
+          href="/jobs"
+          actionText="查看全部工作"
+        />
 
-          {/* Tabs */}
-
+        {/* 分类筛选 */}
+        <div
+          className="
+            mt-7
+            flex
+            flex-col
+            gap-4
+            border-b
+            border-[#ECE7E4]
+            pb-5
+            sm:flex-row
+            sm:items-center
+            sm:justify-between
+          "
+        >
           <div
             className="
-              mt-8
+              -mx-1
               flex
-              flex-col
-              gap-5
-              lg:flex-row
-              lg:items-center
-              lg:justify-between
+              max-w-full
+              gap-2
+              overflow-x-auto
+              px-1
+              pb-1
             "
           >
-            <div
-              className="
-                flex
-                w-fit
-                max-w-full
-                flex-wrap
-                gap-2
-                rounded-2xl
-                border
-                border-slate-200
-                bg-slate-50
-                p-1.5
-              "
-            >
-              {tabs.map((tab) => (
+            {tabs.map((tab) => {
+              const active = activeTab === tab;
+
+              return (
                 <button
                   key={tab}
                   type="button"
+                  aria-pressed={active}
                   onClick={() =>
                     setActiveTab(tab)
                   }
+                  title={
+                    tab === "高薪"
+                      ? "月薪70万日元起，或年薪840万日元起"
+                      : undefined
+                  }
                   className={`
-                    rounded-xl
+                    min-h-10
+                    shrink-0
+                    rounded-full
                     px-4
-                    py-2.5
+                    py-2
                     text-sm
                     font-semibold
                     transition
                     ${
-                      activeTab === tab
-                        ? "bg-slate-950 text-white shadow-sm"
-                        : "text-slate-500 hover:bg-white hover:text-slate-900"
+                      active
+                        ? "bg-[#D9515E] text-white"
+                        : "border border-[#EAE5E2] bg-white text-slate-600 hover:border-[#E8B8BC] hover:bg-[#FFF1F0] hover:text-[#CA4D59]"
                     }
                   `}
                 >
                   {tab}
                 </button>
-              ))}
-            </div>
-
-            <p className="text-sm text-slate-500">
-              当前显示
-              <span className="mx-1.5 font-black text-slate-900">
-                {list.length}
-              </span>
-              个职位
-            </p>
+              );
+            })}
           </div>
 
-          {/* Jobs */}
+          <p
+            className="
+              shrink-0
+              text-xs
+              text-slate-500
+              sm:text-sm
+            "
+          >
+            共{" "}
+            <span className="font-bold text-slate-800">
+              {totalCount}
+            </span>{" "}
+            条示例职位
+          </p>
+        </div>
 
-          {list.length > 0 ? (
-            <div
-              className="
-                mt-10
-                grid
-                grid-cols-1
-                gap-6
-                md:grid-cols-2
-                xl:grid-cols-3
-              "
-            >
-              {list.map((job) => (
-                <JobCard
-                  key={job.id}
-                  {...job}
-                />
-              ))}
-            </div>
-          ) : (
-            <div
-              className="
-                mt-10
-                flex
-                min-h-[240px]
-                items-center
-                justify-center
-                rounded-[28px]
-                border
-                border-dashed
-                border-slate-200
-                bg-slate-50/70
-              "
-            >
-              <div className="text-center">
-                <p className="font-bold text-slate-800">
-                  当前没有符合条件的职位
-                </p>
+        {/* 高薪筛选标准 */}
+        {activeTab === "高薪" && (
+          <p
+            className="
+              mt-4
+              text-xs
+              leading-5
+              text-slate-500
+            "
+          >
+            当前筛选标准：月薪 70 万日元起，
+            或年薪 840 万日元起。
+          </p>
+        )}
 
+        {/* 首页最多显示三条职位 */}
+        {visibleJobs.length > 0 ? (
+          <div
+            className="
+              mt-7
+              grid
+              grid-cols-1
+              gap-5
+              md:grid-cols-2
+              xl:grid-cols-3
+            "
+          >
+            {visibleJobs.map((job) => (
+              <JobCard
+                key={job.id}
+                {...job}
+              />
+            ))}
+          </div>
+        ) : (
+          <div
+            className="
+              mt-7
+              flex
+              min-h-[180px]
+              items-center
+              justify-center
+              rounded-2xl
+              border
+              border-dashed
+              border-[#E8E1DE]
+              bg-[#FAF9F7]
+              px-5
+              text-center
+            "
+          >
+            <div>
+              <p className="font-semibold text-slate-800">
+                暂时没有符合条件的职位
+              </p>
+
+              <p className="mt-2 text-sm text-slate-500">
+                可以切换分类，看看其他工作。
+              </p>
+
+              {activeTab !== "全部" && (
                 <button
                   type="button"
                   onClick={() =>
                     setActiveTab("全部")
                   }
                   className="
-                    mt-3
+                    mt-4
+                    min-h-10
+                    rounded-full
+                    px-4
                     text-sm
-                    font-bold
-                    text-blue-600
-                    hover:text-blue-700
+                    font-semibold
+                    text-[#C64B58]
+                    transition
+                    hover:bg-[#FFF1F0]
                   "
                 >
-                  查看全部职位
+                  查看其他职位
                 </button>
-              </div>
+              )}
             </div>
-          )}
-
-          {/* Bottom */}
-
-          <div className="mt-12 flex justify-center">
-            <Link
-              href={getMoreHref()}
-              className="
-                inline-flex
-                h-12
-                items-center
-                justify-center
-                rounded-full
-                border
-                border-slate-200
-                bg-white
-                px-7
-                text-sm
-                font-bold
-                text-slate-700
-                transition
-                hover:-translate-y-0.5
-                hover:border-slate-950
-                hover:bg-slate-950
-                hover:text-white
-              "
-            >
-              查看更多工作
-              <span className="ml-2">
-                →
-              </span>
-            </Link>
           </div>
+        )}
+
+        {/* Mock 数据提醒 */}
+        <p
+          className="
+            mt-5
+            text-center
+            text-xs
+            leading-5
+            text-slate-400
+          "
+        >
+          当前为示例数据，并非实时招聘信息。
+        </p>
+
+        {/* 查看更多 */}
+        <div className="mt-7 flex justify-center">
+          <Link
+            href={moreLinks[activeTab]}
+            className="
+              inline-flex
+              min-h-11
+              items-center
+              justify-center
+              gap-2
+              rounded-full
+              border
+              border-[#E6D9D7]
+              bg-white
+              px-6
+              text-sm
+              font-semibold
+              text-[#B94855]
+              transition
+              hover:border-[#D9515E]
+              hover:bg-[#FFF1F0]
+            "
+          >
+            {activeTab === "全部"
+              ? "查看全部工作"
+              : "查看更多职位"}
+
+            <ArrowRight size={16} />
+          </Link>
         </div>
       </Container>
     </Section>

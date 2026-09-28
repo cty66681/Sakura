@@ -1,7 +1,10 @@
+
 "use client";
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+
+import { ArrowRight } from "lucide-react";
 
 import Container from "@/components/layout/Container";
 import Section from "@/components/layout/Section";
@@ -10,6 +13,8 @@ import SectionHeader from "@/components/ui/SectionHeader";
 import HouseCard from "../HouseCard";
 
 import { houses } from "@/data/houses";
+
+const PREVIEW_LIMIT = 3;
 
 const tabs = [
   "全部",
@@ -21,12 +26,67 @@ const tabs = [
 
 type Tab = (typeof tabs)[number];
 
+const moreLinks: Record<Tab, string> = {
+  全部: "/houses",
+  东京: "/houses?region=东京",
+  近车站: "/houses?feature=近车站",
+  可养宠物: "/houses?feature=可养宠物",
+  拎包入住: "/houses?feature=拎包入住",
+};
+
+/*
+ * 获取日本当地日期。
+ * 用于避免已过展示有效期的房源继续出现在首页。
+ */
+function getTodayInJapan(): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+
+  const get = (type: string) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
+/*
+ * 仅识别 YYYY-MM-DD 或 ISO 格式的日期。
+ * 没有有效截止日期时，不擅自判定房源过期。
+ */
+function getDatePart(value?: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const match = value.match(
+    /^(\d{4}-\d{2}-\d{2})(?:$|T)/
+  );
+
+  return match?.[1] ?? null;
+}
+
+function includesKeyword(
+  values: string[] | undefined,
+  keywords: string[]
+): boolean {
+  return (
+    values?.some((value) =>
+      keywords.some((keyword) =>
+        value.toLowerCase().includes(
+          keyword.toLowerCase()
+        )
+      )
+    ) ?? false
+  );
+}
+
 /*
 |--------------------------------------------------------------------------
 | TODO [API - GET]
 |--------------------------------------------------------------------------
-|
-| 首页推荐房源
 |
 | GET /api/houses
 |
@@ -35,10 +95,18 @@ type Tab = (typeof tabs)[number];
 |   featured?: true,
 |   region?: string,
 |   feature?: string,
-|   limit?: 6
+|   listingStatus: "available",
+|   moderationStatus: "approved",
+|   limit: 3
 | }
 |
-| 当前阶段使用 "@/data/houses" mock 数据前端筛选。
+| 当前阶段使用 "@/data/houses" Mock 数据。
+|
+| 正式接入后台后：
+| 1. 只返回审核通过、允许公开展示的房源。
+| 2. 排除已出租、暂停出租、隐藏和过期的房源。
+| 3. 根据真实的房源状态及有效期筛选。
+| 4. 按实际发布时间或后台推荐规则排序。
 |
 |--------------------------------------------------------------------------
 */
@@ -47,258 +115,301 @@ export default function HouseSection() {
   const [activeTab, setActiveTab] =
     useState<Tab>("全部");
 
-  const list = useMemo(() => {
-    const filtered = houses.filter((house) => {
-      if (activeTab === "全部") {
+  const filteredHouses = useMemo(() => {
+    const today = getTodayInJapan();
+
+    return houses
+      .filter((house) => {
+        // 首页只展示已审核、当前可出租的房源。
+        if (
+          house.moderationStatus !== "approved" ||
+          house.listingStatus !== "available"
+        ) {
+          return false;
+        }
+
+        // 如果有明确的有效期，排除已过期房源。
+        const expiresAt = getDatePart(
+          house.expiresAt
+        );
+
+        if (expiresAt && expiresAt < today) {
+          return false;
+        }
+
         return true;
-      }
+      })
+      .filter((house) => {
+        if (activeTab === "全部") {
+          return true;
+        }
 
-      if (activeTab === "东京") {
-        return (
-          house.location?.includes("东京") ??
-          false
-        );
-      }
+        if (activeTab === "东京") {
+          return (
+            house.prefecture?.includes("東京") ||
+            house.prefecture?.includes("东京") ||
+            house.location?.includes("东京") ||
+            house.location?.includes("東京") ||
+            false
+          );
+        }
 
-      if (activeTab === "近车站") {
-        return house.tags?.some(
-          (tag) =>
-            tag.includes("近车站") ||
-            tag.includes("车站") ||
-            tag.includes("徒歩") ||
-            tag.includes("步行")
-        );
-      }
+        if (activeTab === "近车站") {
+          // 有实际步行时间时，优先使用它。
+          if (
+            typeof house.walkMinutes === "number" &&
+            Number.isFinite(house.walkMinutes)
+          ) {
+            return house.walkMinutes <= 10;
+          }
 
-      if (activeTab === "可养宠物") {
-        return house.tags?.some(
-          (tag) =>
-            tag.includes("宠物") ||
-            tag.includes("ペット")
-        );
-      }
+          // 没有步行时间时，使用已有标签。
+          return includesKeyword(
+            house.tags,
+            [
+              "近车站",
+              "车站近",
+              "駅近",
+              "步行",
+              "徒歩",
+            ]
+          );
+        }
 
-      if (activeTab === "拎包入住") {
-        return house.tags?.some(
-          (tag) =>
-            tag.includes("拎包入住") ||
-            tag.includes("家具") ||
-            tag.includes("家电")
-        );
-      }
+        if (activeTab === "可养宠物") {
+          const keywords = [
+            "宠物",
+            "ペット",
+            "pet",
+          ];
 
-      return true;
-    });
+          return (
+            includesKeyword(house.tags, keywords) ||
+            includesKeyword(house.features, keywords)
+          );
+        }
 
-    return filtered.slice(0, 6);
+        if (activeTab === "拎包入住") {
+          const keywords = [
+            "拎包入住",
+            "家具",
+            "家电",
+            "家具付き",
+            "家電付き",
+            "furnished",
+          ];
+
+          return (
+            includesKeyword(house.tags, keywords) ||
+            includesKeyword(house.features, keywords)
+          );
+        }
+
+        return true;
+      })
+      .sort((a, b) =>
+        b.publishTime.localeCompare(a.publishTime)
+      );
   }, [activeTab]);
 
-  const getMoreHref = () => {
-    if (activeTab === "东京") {
-      return "/houses?region=东京";
-    }
+  const visibleHouses = filteredHouses.slice(
+    0,
+    PREVIEW_LIMIT
+  );
 
-    if (activeTab === "近车站") {
-      return "/houses?feature=近车站";
-    }
-
-    if (activeTab === "可养宠物") {
-      return "/houses?feature=可养宠物";
-    }
-
-    if (activeTab === "拎包入住") {
-      return "/houses?feature=拎包入住";
-    }
-
-    return "/houses";
-  };
+  const totalCount = filteredHouses.length;
 
   return (
     <Section
       className="
-        relative
-        overflow-hidden
-        bg-stone-50
+        border-t
+        border-[#F0EBE8]
+        bg-[#FAF9F7]
       "
     >
-      <div
-        className="
-          pointer-events-none
-          absolute
-          -left-32
-          top-20
-          h-[360px]
-          w-[360px]
-          rounded-full
-          bg-amber-100/40
-          blur-3xl
-        "
-      />
-
       <Container>
-        <div className="relative z-10">
-          <SectionHeader
-            badge="房源"
-            title="顺便看看，有没有合适的住处"
-            description="精选日本生活中常见的租房需求，快速查看地区和房源特点。"
-            href="/houses"
-            actionText="查看全部房源"
-          />
+        <SectionHeader
+          badge="日本租房"
+          title="看看有没有合适的住处"
+          description="按地区和居住需求快速浏览房源，找到感兴趣的房子后再查看详细信息。"
+          href="/houses"
+          actionText="查看全部房源"
+        />
 
-          {/* Tabs */}
-
+        {/* 分类筛选 */}
+        <div
+          className="
+            mt-7
+            flex
+            flex-col
+            gap-4
+            border-b
+            border-[#ECE7E4]
+            pb-5
+            sm:flex-row
+            sm:items-center
+            sm:justify-between
+          "
+        >
           <div
             className="
-              mt-8
+              -mx-1
               flex
-              flex-col
-              gap-5
-              lg:flex-row
-              lg:items-center
-              lg:justify-between
+              max-w-full
+              gap-2
+              overflow-x-auto
+              px-1
+              pb-1
             "
           >
-            <div
-              className="
-                flex
-                w-fit
-                max-w-full
-                flex-wrap
-                gap-2
-                rounded-2xl
-                border
-                border-stone-200
-                bg-white/80
-                p-1.5
-                shadow-sm
-                backdrop-blur
-              "
-            >
-              {tabs.map((tab) => (
+            {tabs.map((tab) => {
+              const active = activeTab === tab;
+
+              return (
                 <button
                   key={tab}
                   type="button"
+                  aria-pressed={active}
                   onClick={() =>
                     setActiveTab(tab)
                   }
                   className={`
-                    rounded-xl
+                    min-h-10
+                    shrink-0
+                    rounded-full
                     px-4
-                    py-2.5
+                    py-2
                     text-sm
                     font-semibold
                     transition
                     ${
-                      activeTab === tab
-                        ? "bg-slate-950 text-white"
-                        : "text-slate-500 hover:bg-stone-100 hover:text-slate-900"
+                      active
+                        ? "bg-[#D9515E] text-white"
+                        : "border border-[#EAE5E2] bg-white text-slate-600 hover:border-[#E8B8BC] hover:bg-[#FFF1F0] hover:text-[#CA4D59]"
                     }
                   `}
                 >
                   {tab}
                 </button>
-              ))}
-            </div>
-
-            <p className="text-sm text-slate-500">
-              当前显示
-              <span className="mx-1.5 font-black text-slate-900">
-                {list.length}
-              </span>
-              套房源
-            </p>
+              );
+            })}
           </div>
 
-          {/* List */}
+          <p
+            className="
+              shrink-0
+              text-xs
+              text-slate-500
+              sm:text-sm
+            "
+          >
+            当前可展示{" "}
+            <span className="font-bold text-slate-800">
+              {totalCount}
+            </span>{" "}
+            套
+          </p>
+        </div>
 
-          {list.length > 0 ? (
-            <div
-              className="
-                mt-10
-                grid
-                grid-cols-1
-                gap-6
-                md:grid-cols-2
-                xl:grid-cols-3
-              "
-            >
-              {list.map((house) => (
-                <HouseCard
-                  key={house.id}
-                  {...house}
-                />
-              ))}
-            </div>
-          ) : (
-            <div
-              className="
-                mt-10
-                flex
-                min-h-[240px]
-                items-center
-                justify-center
-                rounded-[28px]
-                border
-                border-dashed
-                border-stone-300
-                bg-white/70
-              "
-            >
-              <div className="text-center">
-                <p className="font-bold text-slate-800">
-                  当前没有符合条件的房源
-                </p>
+        {/* 首页最多展示三套房源 */}
+        {visibleHouses.length > 0 ? (
+          <div
+            className="
+              mt-7
+              grid
+              grid-cols-1
+              gap-5
+              md:grid-cols-2
+              xl:grid-cols-3
+            "
+          >
+            {visibleHouses.map((house) => (
+              <HouseCard
+                key={house.id}
+                {...house}
+              />
+            ))}
+          </div>
+        ) : (
+          <div
+            className="
+              mt-7
+              flex
+              min-h-[180px]
+              items-center
+              justify-center
+              rounded-2xl
+              border
+              border-dashed
+              border-[#E8E1DE]
+              bg-white
+              px-5
+              text-center
+            "
+          >
+            <div>
+              <p className="font-semibold text-slate-800">
+                当前没有符合条件的房源
+              </p>
 
+              <p className="mt-2 text-sm text-slate-500">
+                可以切换分类，看看其他房源。
+              </p>
+
+              {activeTab !== "全部" && (
                 <button
                   type="button"
                   onClick={() =>
                     setActiveTab("全部")
                   }
                   className="
-                    mt-3
+                    mt-4
+                    min-h-10
+                    rounded-full
+                    px-4
                     text-sm
-                    font-bold
-                    text-blue-600
-                    hover:text-blue-700
+                    font-semibold
+                    text-[#C64B58]
+                    transition
+                    hover:bg-[#FFF1F0]
                   "
                 >
-                  查看全部房源
+                  查看其他房源
                 </button>
-              </div>
+              )}
             </div>
-          )}
-
-          {/* Bottom */}
-
-          <div className="mt-12 flex justify-center">
-            <Link
-              href={getMoreHref()}
-              className="
-                inline-flex
-                h-12
-                items-center
-                justify-center
-                rounded-full
-                border
-                border-stone-300
-                bg-white
-                px-7
-                text-sm
-                font-bold
-                text-slate-700
-                transition
-                hover:-translate-y-0.5
-                hover:border-slate-950
-                hover:bg-slate-950
-                hover:text-white
-              "
-            >
-              查看更多房源
-              <span className="ml-2">
-                →
-              </span>
-            </Link>
           </div>
+        )}
+
+        {/* 查看更多 */}
+        <div className="mt-8 flex justify-center">
+          <Link
+            href={moreLinks[activeTab]}
+            className="
+              inline-flex
+              min-h-11
+              items-center
+              justify-center
+              gap-2
+              rounded-full
+              border
+              border-[#E6D9D7]
+              bg-white
+              px-6
+              text-sm
+              font-semibold
+              text-[#B94855]
+              transition
+              hover:border-[#D9515E]
+              hover:bg-[#FFF1F0]
+            "
+          >
+            {activeTab === "全部"
+              ? "查看全部房源"
+              : "查看更多房源"}
+
+            <ArrowRight size={16} />
+          </Link>
         </div>
       </Container>
     </Section>

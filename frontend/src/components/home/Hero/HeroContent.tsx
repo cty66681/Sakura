@@ -1,239 +1,265 @@
-"use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
-  ArrowRight,
-  BadgeCheck,
-  BookOpen,
-  CircleAlert,
+  ArrowUpRight,
+  BriefcaseBusiness,
+  Flower2,
   GraduationCap,
-  Search,
-  Sparkles,
+  House,
+  ShieldAlert,
 } from "lucide-react";
 
 import HeroSearch from "./HeroSearch";
 
 const quickEntries = [
   {
-    title: "找学校",
-    description: "大学・语言学校・专门学校",
+    title: "找工作",
+    description: "招聘、薪资、工作条件",
+    href: "/jobs",
+    icon: BriefcaseBusiness,
+  },
+  {
+    title: "找房源",
+    description: "房租、地区、入住条件",
+    href: "/houses",
+    icon: House,
+  },
+  {
+    title: "查学校",
+    description: "大学、语言学校、专门学校",
     href: "/schools",
     icon: GraduationCap,
   },
   {
-    title: "看经验",
-    description: "在日生活真实经验",
-    href: "/experience",
-    icon: BookOpen,
-  },
-  {
     title: "查避坑",
-    description: "诈骗・合同・生活风险",
+    description: "生活风险与防骗提醒",
     href: "/scam",
-    icon: CircleAlert,
+    icon: ShieldAlert,
   },
 ];
 
 const hotKeywords = [
-  {
-    label: "东京语言学校",
-    href: "/schools/language?region=东京",
-  },
-  {
-    label: "IT・AI 专门学校",
-    href: "/schools/college?category=IT・AI",
-  },
-  {
-    label: "日本大学",
-    href: "/schools/university",
-  },
-  {
-    label: "租房避坑",
-    href: "/scam?q=租房",
-  },
+  "东京工作",
+  "池袋租房",
+  "IT专门学校",
+  "租房避坑",
 ];
 
 export default function HeroContent() {
-  const router = useRouter();
-
   return (
-    <div className="w-full max-w-[760px]">
-      {/* Badge */}
-
-      <div className="inline-flex items-center gap-2 rounded-full border border-blue-400/20 bg-blue-500/10 px-4 py-2 text-sm font-semibold text-blue-300 backdrop-blur">
-        <Sparkles size={15} />
-
-        Sakura 日本生活信息平台
-
-        <span className="h-1 w-1 rounded-full bg-blue-400" />
-
-        Beta
+    <div className="mx-auto w-full max-w-[940px]">
+      {/* 平台身份 */}
+      <div className="flex justify-center">
+        <div
+          className="
+            inline-flex
+            items-center
+            gap-2
+            rounded-full
+            border
+            border-[#F0DED9]
+            bg-white/80
+            px-4
+            py-2
+            text-xs
+            font-semibold
+            text-[#C14B59]
+            sm:text-sm
+          "
+        >
+          <Flower2 size={17} strokeWidth={1.8} />
+          在日华人的生活导航
+        </div>
       </div>
 
-      {/* Title */}
-
-      <h1 className="mt-7 max-w-[720px] text-[46px] font-black leading-[1.06] tracking-[-0.045em] text-white sm:text-[58px] lg:text-[68px] xl:text-[74px]">
-        在日本生活，
-
-        <span className="mt-2 block bg-gradient-to-r from-blue-400 via-sky-300 to-emerald-300 bg-clip-text text-transparent">
-          需要的信息一次找到。
+      {/* 主标题 */}
+      <h1
+        className="
+          mx-auto
+          mt-7
+          max-w-[860px]
+          text-center
+          text-[35px]
+          font-bold
+          leading-[1.35]
+          tracking-tight
+          text-[#272B32]
+          sm:text-[49px]
+          lg:text-[58px]
+        "
+      >
+        在日本，想找什么，
+        <span className="block text-[#DC5360] sm:inline">
+          来这里搜。
         </span>
       </h1>
 
-      {/* Description */}
-
-      <p className="mt-7 max-w-[650px] text-base leading-8 text-slate-300 sm:text-lg">
-        学校、在日经验、避坑信息、生活资讯、房源和工作。
-        不需要在十几个网站之间来回找，
-        Sakura 帮你把真正有用的信息整理到一起。
+      <p
+        className="
+          mx-auto
+          mt-5
+          max-w-[650px]
+          text-center
+          text-sm
+          leading-7
+          text-[#737780]
+          sm:text-base
+        "
+      >
+        找工作、查学校、看房源，
+        还有在日生活的经验和避坑提醒。
+        想了解的事，从这里开始。
       </p>
 
-      {/* Trust points */}
-
-      <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-400">
-        <TrustPoint>
-          中文信息
-        </TrustPoint>
-
-        <TrustPoint>
-          日本本地内容
-        </TrustPoint>
-
-        <TrustPoint>
-          搜索直接到结果
-        </TrustPoint>
-
-        <TrustPoint>
-          AI 辅助查找
-        </TrustPoint>
-      </div>
-
-      {/* Main Search */}
-
-      <div className="mt-9">
+      {/* 全站搜索 */}
+      <div className="mx-auto mt-8 max-w-[790px] sm:mt-10">
         <HeroSearch />
       </div>
 
-      {/* Hot Search */}
-
-      <div className="mt-5 flex flex-wrap items-center gap-2">
-        <span className="mr-1 text-xs font-bold text-slate-500">
-          热门：
+      {/* 常见搜索 */}
+      <div
+        className="
+          mt-4
+          flex
+          flex-wrap
+          items-center
+          justify-center
+          gap-2
+        "
+      >
+        <span className="mr-1 text-xs text-[#898B91]">
+          试试搜索
         </span>
 
-        {hotKeywords.map((item) => (
-          <button
-            key={item.label}
-            type="button"
-            onClick={() =>
-              router.push(item.href)
-            }
+        {hotKeywords.map((keyword) => (
+          <Link
+            key={keyword}
+            href={`/search?q=${encodeURIComponent(keyword)}`}
             className="
               rounded-full
               border
-              border-white/10
-              bg-white/[0.04]
-              px-3.5
+              border-[#EAE4E1]
+              bg-white/75
+              px-3
               py-1.5
               text-xs
-              font-medium
-              text-slate-400
+              text-[#696D75]
               transition
-              hover:border-blue-400/30
-              hover:bg-blue-500/10
-              hover:text-blue-200
+              hover:border-[#E6A7AC]
+              hover:bg-[#FFF1F0]
+              hover:text-[#CA4D59]
             "
           >
-            {item.label}
-          </button>
+            {keyword}
+          </Link>
         ))}
       </div>
 
-      {/* Quick Entry */}
+      {/* 常用分类 */}
+      <div className="mt-12 sm:mt-14">
+        <div
+          className="
+            mb-5
+            flex
+            items-center
+            justify-between
+            gap-3
+          "
+        >
+          <h2
+            className="
+              text-lg
+              font-bold
+              text-[#30343B]
+              sm:text-xl
+            "
+          >
+            你现在想找什么？
+          </h2>
 
-      <div className="mt-9 grid gap-3 sm:grid-cols-3">
-        {quickEntries.map((item) => {
-          const Icon = item.icon;
+          <span className="text-xs text-[#92949A]">
+            常用分类
+          </span>
+        </div>
 
-          return (
-            <Link
-              key={item.title}
-              href={item.href}
-              className="
-                group
-                rounded-2xl
-                border
-                border-white/10
-                bg-white/[0.045]
-                p-4
-                backdrop-blur
-                transition
-                duration-300
-                hover:-translate-y-0.5
-                hover:border-blue-400/30
-                hover:bg-white/[0.07]
-              "
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div
-                  className="
-                    flex
-                    h-9
-                    w-9
-                    items-center
-                    justify-center
-                    rounded-xl
-                    bg-white/[0.07]
-                    text-slate-300
-                    transition
-                    group-hover:bg-blue-500/15
-                    group-hover:text-blue-300
-                  "
-                >
-                  <Icon size={17} />
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          {quickEntries.map((item) => {
+            const Icon = item.icon;
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="
+                  group
+                  relative
+                  rounded-2xl
+                  border
+                  border-[#ECE7E4]
+                  bg-white
+                  p-4
+                  shadow-[0_3px_15px_rgba(50,40,35,0.025)]
+                  transition
+                  duration-200
+                  hover:-translate-y-0.5
+                  hover:border-[#E9B9BA]
+                  hover:shadow-[0_8px_26px_rgba(80,50,45,0.065)]
+                  sm:p-5
+                "
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div
+                    className="
+                      flex
+                      h-11
+                      w-11
+                      items-center
+                      justify-center
+                      rounded-xl
+                      bg-[#FFF0EE]
+                      text-[#D45460]
+                    "
+                  >
+                    <Icon size={22} strokeWidth={1.8} />
+                  </div>
+
+                  <ArrowUpRight
+                    size={17}
+                    className="
+                      text-[#B9B7B6]
+                      transition
+                      group-hover:text-[#D45460]
+                    "
+                  />
                 </div>
 
-                <ArrowRight
-                  size={15}
+                <h3
                   className="
-                    mt-1
-                    text-slate-600
-                    transition
-                    group-hover:translate-x-0.5
-                    group-hover:text-blue-400
+                    mt-5
+                    text-[15px]
+                    font-bold
+                    text-[#30343B]
+                    sm:text-base
                   "
-                />
-              </div>
+                >
+                  {item.title}
+                </h3>
 
-              <p className="mt-4 text-sm font-black text-white">
-                {item.title}
-              </p>
-
-              <p className="mt-1.5 text-xs leading-5 text-slate-500">
-                {item.description}
-              </p>
-            </Link>
-          );
-        })}
+                <p
+                  className="
+                    mt-1.5
+                    text-xs
+                    leading-5
+                    text-[#898B91]
+                  "
+                >
+                  {item.description}
+                </p>
+              </Link>
+            );
+          })}
+        </div>
       </div>
     </div>
-  );
-}
-
-function TrustPoint({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <BadgeCheck
-        size={14}
-        className="text-emerald-400"
-      />
-
-      {children}
-    </span>
   );
 }

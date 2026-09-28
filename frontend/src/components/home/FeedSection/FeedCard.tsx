@@ -1,15 +1,18 @@
+
 "use client";
 
+import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import Card from "@/components/ui/Card";
 import FavoriteButton from "@/components/ui/FavoriteButton";
 
 import {
+  ArrowRight,
   Eye,
   MapPin,
   MessageCircle,
-  MoreHorizontal,
 } from "lucide-react";
 
 export interface FeedItem {
@@ -24,21 +27,13 @@ export interface FeedItem {
     | "news";
 
   title: string;
-
   summary: string;
-
   description: string;
-
   location?: string;
-
   publishTime: string;
-
   cover?: string;
-
   likes: number;
-
   comments: number;
-
   views: number;
 }
 
@@ -55,86 +50,57 @@ const badgeMap: Record<
 > = {
   job: {
     text: "工作",
-    className:
-      "bg-blue-100 text-blue-700",
+    className: "bg-blue-50 text-blue-700",
   },
-
   house: {
     text: "房源",
-    className:
-      "bg-emerald-100 text-emerald-700",
+    className: "bg-emerald-50 text-emerald-700",
   },
-
   school: {
     text: "学校",
-    className:
-      "bg-indigo-100 text-indigo-700",
+    className: "bg-indigo-50 text-indigo-700",
   },
-
   experience: {
     text: "经验",
-    className:
-      "bg-orange-100 text-orange-700",
+    className: "bg-amber-50 text-amber-700",
   },
-
   scam: {
     text: "避坑",
-    className:
-      "bg-red-100 text-red-700",
+    className: "bg-rose-50 text-rose-700",
   },
-
   news: {
     text: "资讯",
-    className:
-      "bg-violet-100 text-violet-700",
+    className: "bg-violet-50 text-violet-700",
   },
 };
 
-function getFeedHref(item: FeedItem) {
-  if (item.type === "job") {
-    return `/jobs/${item.id}`;
-  }
+function getFeedHref(item: FeedItem): string {
+  switch (item.type) {
+    case "job":
+      return `/jobs/${item.id}`;
 
-  if (item.type === "house") {
-    return `/houses/${item.id}`;
-  }
+    case "house":
+      return `/houses/${item.id}`;
 
-  if (item.type === "experience") {
-    return `/experience/${item.id}`;
-  }
+    case "experience":
+      return `/experience/${item.id}`;
 
-  if (item.type === "scam") {
-    return `/scam/${item.id}`;
-  }
+    case "scam":
+      return `/scam/${item.id}`;
 
-  /*
-   * 学校目前存在三个独立模块，
-   * 首页 feed 数据还没有 schoolType，
-   * 暂时进入学校中心，避免制造错误详情链接。
-   *
-   * 后端以后应该返回：
-   * {
-   *   id,
-   *   type: "school",
-   *   schoolType: "language" | "university" | "college"
-   * }
-   *
-   * 然后直接进入对应学校详情。
-   */
-  if (item.type === "school") {
-    return "/schools";
-  }
+    case "school":
+      // TODO [API - GET]
+      // 后端增加 schoolType 和实际学校详情 ID 后，
+      // 再跳转至对应学校详情页。
+      return "/schools";
 
-  /*
-   * 资讯模块目前还没有正式详情页。
-   * 先进入全站搜索，不制造 /news/:id 404。
-   *
-   * 后续 News 模块建立以后改成：
-   * /news/${item.id}
-   */
-  return `/search?q=${encodeURIComponent(
-    item.title
-  )}`;
+    case "news":
+      // 资讯详情页尚未接入。
+      // 暂时通过全站搜索查找相关信息。
+      return `/search?q=${encodeURIComponent(
+        item.title
+      )}`;
+  }
 }
 
 export default function FeedCard({
@@ -142,19 +108,27 @@ export default function FeedCard({
 }: FeedCardProps) {
   const router = useRouter();
 
+  /*
+   * 记录加载失败的图片地址。
+   * 没有封面或封面失效时，不显示整个图片区域。
+   * 图片地址更新后，新图片仍然可以正常加载。
+   */
+  const [failedCover, setFailedCover] =
+    useState<string | null>(null);
+
+  const cover = item.cover?.trim();
+
+  const showCover =
+    Boolean(cover) && failedCover !== cover;
+
   const badge = badgeMap[item.type];
 
   const href = getFeedHref(item);
 
-  function openDetail() {
-    router.push(href);
-  }
-
   function openComments() {
-    /*
-     * 评论系统建立后，
-     * 所有正式详情页都会有 #comments 区域。
-     */
+    // TODO [API - GET]
+    // 正式评论系统接入后，
+    // 详情页需要提供 #comments 区域。
     router.push(`${href}#comments`);
   }
 
@@ -163,181 +137,145 @@ export default function FeedCard({
       className="
         group
         relative
-        cursor-pointer
+        flex
+        h-full
+        flex-col
+        overflow-hidden
+        rounded-2xl
+        border
+        border-slate-200
+        bg-white
         p-5
-        transition
+        transition-all
         duration-200
         hover:-translate-y-0.5
-        hover:shadow-lg
+        hover:border-rose-200
+        hover:shadow-[0_8px_28px_rgba(50,40,40,0.06)]
         sm:p-6
       "
     >
-      <div
-        role="link"
-        tabIndex={0}
+      {/* 主要内容：点击进入详情 */}
+      <Link
+        href={href}
         aria-label={`查看：${item.title}`}
-        onClick={openDetail}
-        onKeyDown={(event) => {
-          if (
-            event.key === "Enter" ||
-            event.key === " "
-          ) {
-            event.preventDefault();
-            openDetail();
-          }
-        }}
         className="
+          block
+          rounded-lg
           outline-none
           focus-visible:ring-2
-          focus-visible:ring-blue-500
+          focus-visible:ring-rose-400
           focus-visible:ring-offset-4
         "
       >
-        {/* Header */}
-
-        <div className="flex items-center justify-between gap-3">
-          <div
-            className="
-              flex
-              min-w-0
-              flex-wrap
+        {/* 分类与发布时间 */}
+        <div
+          className="
+            flex
+            flex-wrap
+            items-center
+            gap-2
+          "
+        >
+          <span
+            className={`
+              inline-flex
               items-center
-              gap-2
-              sm:gap-3
-            "
+              rounded-full
+              px-3
+              py-1
+              text-xs
+              font-semibold
+              ${badge.className}
+            `}
           >
-            <span
-              className={`
-                shrink-0
-                rounded-full
-                px-3
-                py-1
-                text-xs
-                font-semibold
-                ${badge.className}
-              `}
-            >
-              {badge.text}
-            </span>
+            {badge.text}
+          </span>
 
-            <span
-              className="
-                truncate
-                text-xs
-                text-slate-400
-                sm:text-sm
-              "
-            >
-              {item.publishTime}
-            </span>
-          </div>
-
-          <button
-            type="button"
-            aria-label="更多操作"
-            onClick={(event) => {
-              event.stopPropagation();
-
-              /*
-               * 后续这里可以打开：
-               * 分享 / 举报 / 不感兴趣
-               */
-            }}
-            className="
-              relative
-              z-10
-              flex
-              h-10
-              w-10
-              shrink-0
-              items-center
-              justify-center
-              rounded-xl
-              text-slate-400
-              transition
-              hover:bg-slate-100
-              hover:text-slate-700
-            "
-          >
-            <MoreHorizontal size={18} />
-          </button>
+          <span className="text-xs text-slate-400">
+            {item.publishTime}
+          </span>
         </div>
 
-        {/* Title */}
-
-        <h2
+        {/* 标题 */}
+        <h3
           className="
-            mt-5
-            text-xl
-            font-black
+            mt-4
+            line-clamp-2
+            text-lg
+            font-bold
             leading-snug
             text-slate-900
             transition-colors
-            group-hover:text-blue-600
-            sm:text-2xl
+            group-hover:text-[#D34F5C]
+            sm:text-xl
           "
         >
           {item.title}
-        </h2>
+        </h3>
 
-        {/* Summary */}
-
+        {/* 简介 */}
         <p
           className="
             mt-3
-            line-clamp-2
+            line-clamp-3
             text-sm
             leading-7
             text-slate-500
-            sm:text-base
           "
         >
           {item.summary}
         </p>
 
-        {/* Cover */}
-
-        {item.cover && (
+        {/* 有真实图片且加载成功时才显示 */}
+        {showCover && cover && (
           <div
             className="
-              mt-5
+              mt-4
               overflow-hidden
-              rounded-2xl
-              bg-slate-100
-              sm:mt-6
+              rounded-xl
+              bg-slate-50
             "
           >
             <img
-              src={item.cover}
+              src={cover}
               alt={item.title}
+              loading="lazy"
+              decoding="async"
+              onError={() => {
+                setFailedCover(cover);
+              }}
               className="
-                aspect-[16/9]
+                h-44
                 w-full
                 object-cover
-                transition
-                duration-500
+                transition-transform
+                duration-300
                 group-hover:scale-[1.02]
+                sm:h-52
               "
             />
           </div>
         )}
 
-        {/* Location */}
-
+        {/* 地区 */}
         {item.location && (
           <div
             className="
-              mt-5
+              mt-4
               flex
               items-center
-              gap-2
-              text-sm
+              gap-1.5
+              text-xs
               text-slate-500
+              sm:text-sm
             "
           >
             <MapPin
-              size={16}
-              className="shrink-0"
+              size={15}
+              className="
+                shrink-0
+                text-slate-400
+              "
             />
 
             <span className="truncate">
@@ -345,129 +283,106 @@ export default function FeedCard({
             </span>
           </div>
         )}
+      </Link>
 
-        {/* Footer */}
-
+      {/* 底部交互 */}
+      <div
+        className="
+          mt-auto
+          flex
+          flex-wrap
+          items-center
+          justify-between
+          gap-3
+          border-t
+          border-slate-100
+          pt-4
+          [&:not(:first-child)]:mt-5
+        "
+      >
         <div
           className="
-            mt-6
             flex
+            min-w-0
             items-center
-            justify-between
-            gap-3
-            border-t
-            border-slate-100
-            pt-4
-            sm:gap-4
-            sm:pt-5
+            gap-4
+            sm:gap-5
           "
         >
+          {/* 收藏：保留原有组件 */}
           <div
             className="
               flex
-              min-w-0
               items-center
-              gap-3
-              sm:gap-5
+              gap-1.5
+              text-sm
+              text-slate-500
             "
           >
-            {/* Favorite */}
+            <FavoriteButton size={20} />
 
-            <div
-              onClick={(event) => {
-                event.stopPropagation();
-              }}
-              onKeyDown={(event) => {
-                event.stopPropagation();
-              }}
-              className="
-                relative
-                z-10
-                flex
-                items-center
-                gap-1.5
-                text-sm
-                text-slate-500
-                sm:gap-2
-              "
-            >
-              <FavoriteButton size={20} />
-
-              <span>{item.likes}</span>
-            </div>
-
-            {/* Comment */}
-
-            <button
-              type="button"
-              aria-label={`查看 ${item.comments} 条评论`}
-              onClick={(event) => {
-                event.stopPropagation();
-                openComments();
-              }}
-              className="
-                relative
-                z-10
-                flex
-                min-h-10
-                items-center
-                gap-1.5
-                rounded-lg
-                px-1
-                text-sm
-                text-slate-500
-                transition
-                hover:text-blue-600
-                sm:gap-2
-              "
-            >
-              <MessageCircle size={18} />
-
-              {item.comments}
-            </button>
-
-            {/* Views */}
-
-            <div
-              className="
-                flex
-                items-center
-                gap-1.5
-                text-sm
-                text-slate-500
-                sm:gap-2
-              "
-            >
-              <Eye size={18} />
-
-              {item.views}
-            </div>
+            <span>{item.likes}</span>
           </div>
 
+          {/* 评论 */}
           <button
             type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              openDetail();
-            }}
+            aria-label={`查看 ${item.comments} 条评论`}
+            onClick={openComments}
             className="
-              relative
-              z-10
-              hidden
+              inline-flex
               min-h-10
-              shrink-0
               items-center
+              gap-1.5
+              rounded-lg
               text-sm
-              font-bold
-              text-blue-600
-              transition
-              hover:translate-x-1
-              sm:inline-flex
+              text-slate-500
+              transition-colors
+              hover:text-[#D34F5C]
             "
           >
-            阅读全文 →
+            <MessageCircle size={18} />
+
+            <span>{item.comments}</span>
           </button>
+
+          {/* 浏览量 */}
+          <div
+            className="
+              flex
+              items-center
+              gap-1.5
+              text-sm
+              text-slate-500
+            "
+            aria-label={`${item.views} 次浏览`}
+          >
+            <Eye size={18} />
+
+            <span>{item.views}</span>
+          </div>
         </div>
+
+        {/* 阅读全文 */}
+        <Link
+          href={href}
+          className="
+            inline-flex
+            min-h-10
+            shrink-0
+            items-center
+            gap-1.5
+            text-xs
+            font-semibold
+            text-[#D34F5C]
+            transition
+            hover:gap-2.5
+            sm:text-sm
+          "
+        >
+          查看详情
+          <ArrowRight size={16} />
+        </Link>
       </div>
     </Card>
   );

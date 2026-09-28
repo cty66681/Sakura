@@ -1,16 +1,18 @@
+
 "use client";
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 
 import Container from "@/components/layout/Container";
 import Section from "@/components/layout/Section";
-
 import SectionHeader from "@/components/ui/SectionHeader";
-
 import SchoolCard from "../SchoolCard";
 
 import { schools } from "@/data/schools";
+
+const PREVIEW_LIMIT = 3;
 
 const tabs = [
   "全部",
@@ -22,24 +24,85 @@ const tabs = [
 
 type Tab = (typeof tabs)[number];
 
+const moreLinks: Record<Tab, string> = {
+  全部: "/schools",
+  大学: "/schools/university?degree=大学",
+  大学院: "/schools/university?degree=大学院",
+  专门学校: "/schools/college",
+  语言学校: "/schools/language",
+};
+
+function getTodayInJapan(): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+
+  const get = (type: string) =>
+    Number(
+      parts.find((part) => part.type === type)?.value ?? 0
+    );
+
+  return (
+    get("year") * 10000 +
+    get("month") * 100 +
+    get("day")
+  );
+}
+
+function parseDeadline(value: string): number | null {
+  const match = value.match(
+    /^(\d{4})-(\d{2})-(\d{2})$/
+  );
+
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+
+  const date = new Date(
+    Date.UTC(year, month - 1, day)
+  );
+
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() + 1 !== month ||
+    date.getUTCDate() !== day
+  ) {
+    return null;
+  }
+
+  return year * 10000 + month * 100 + day;
+}
+
+// Mock 数据的首页预览日期。
+// 正式后台应按请求时的日本日期动态筛选。
+const TODAY_IN_JAPAN = getTodayInJapan();
+
 /*
 |--------------------------------------------------------------------------
 | TODO [API - GET]
 |--------------------------------------------------------------------------
 |
-| 首页推荐学校
-|
 | GET /api/schools/home
 |
 | Query:
 | {
-|   type?: "university" | "college" | "language",
-|   degree?: "大学" | "大学院",
-|   limit?: 6
+|   type?: "大学" | "大学院" | "专门学校" | "语言学校",
+|   limit?: number
 | }
 |
-| 当前阶段：
-| 使用 "@/data/schools" mock 数据前端筛选。
+| 当前仅展示 Mock 学校资料。
+|
+| 正式后台应提供：
+| - 经核实的招生批次
+| - 对应批次的申请截止日期
+| - 招生状态与最后核实时间
+|
+| 不能仅凭某轮截止日期推断学校停止招生。
 |
 |--------------------------------------------------------------------------
 */
@@ -48,232 +111,211 @@ export default function SchoolSection() {
   const [activeTab, setActiveTab] =
     useState<Tab>("全部");
 
-  const list = useMemo(() => {
-    const filtered = schools.filter((school) => {
-    if (activeTab === "全部") {
-      return true;
-    }
+  const filteredSchools = useMemo(() => {
+    return schools
+      .filter(
+        (school) =>
+          activeTab === "全部" ||
+          school.type === activeTab
+      )
+      .filter((school) => {
+        const deadline = parseDeadline(
+          school.deadline
+        );
 
-    return school.type === activeTab;
-  });
+        // 无法识别的日期不擅自判定过期。
+        return (
+          deadline === null ||
+          deadline >= TODAY_IN_JAPAN
+        );
+      })
+      .sort((a, b) => {
+        const aDate =
+          parseDeadline(a.deadline) ??
+          Number.MAX_SAFE_INTEGER;
 
-    return filtered.slice(0, 6);
+        const bDate =
+          parseDeadline(b.deadline) ??
+          Number.MAX_SAFE_INTEGER;
+
+        return aDate - bDate;
+      });
   }, [activeTab]);
 
-  const getMoreHref = () => {
-    if (activeTab === "大学") {
-      return "/schools/university?degree=大学";
-    }
-
-    if (activeTab === "大学院") {
-      return "/schools/university?degree=大学院";
-    }
-
-    if (activeTab === "专门学校") {
-      return "/schools/college";
-    }
-
-    if (activeTab === "语言学校") {
-      return "/schools/language";
-    }
-
-    return "/schools";
-  };
+  const visibleSchools = filteredSchools.slice(
+    0,
+    PREVIEW_LIMIT
+  );
 
   return (
     <Section
       className="
-        relative
-        overflow-hidden
-        bg-slate-50
+        border-t
+        border-[#F0EBE8]
+        bg-[#FAF9F7]
       "
     >
-      {/* Background decoration */}
-
-      <div
-        className="
-          pointer-events-none
-          absolute
-          -right-40
-          top-20
-          h-[420px]
-          w-[420px]
-          rounded-full
-          bg-blue-200/30
-          blur-3xl
-        "
-      />
-
-      <div
-        className="
-          pointer-events-none
-          absolute
-          -left-40
-          bottom-0
-          h-[360px]
-          w-[360px]
-          rounded-full
-          bg-indigo-100/40
-          blur-3xl
-        "
-      />
-
       <Container>
-        <div className="relative z-10">
-          <SectionHeader
-            badge="日本升学"
-            title="找到适合你的学校"
-            description="大学・大学院、语言学校、专门学校，按类型快速查看。"
-            href="/schools"
-            actionText="进入学校中心"
-          />
+        <SectionHeader
+          badge="日本升学"
+          title="看看日本有哪些学校"
+          description="大学、大学院、专门学校和语言学校，先了解不同选择，再慢慢比较。"
+          href="/schools"
+          actionText="进入学校中心"
+        />
 
-          {/* Tabs + Count */}
-
+        {/* 分类 */}
+        <div
+          className="
+            mt-7
+            flex
+            flex-col
+            gap-4
+            border-b
+            border-[#ECE7E4]
+            pb-5
+            sm:flex-row
+            sm:items-center
+            sm:justify-between
+          "
+        >
           <div
             className="
-              mt-8
+              -mx-1
               flex
-              flex-col
-              gap-5
-              lg:flex-row
-              lg:items-center
-              lg:justify-between
+              max-w-full
+              gap-2
+              overflow-x-auto
+              px-1
+              pb-1
             "
           >
-            <div
-              className="
-                inline-flex
-                w-fit
-                max-w-full
-                flex-wrap
-                gap-2
-                rounded-2xl
-                border
-                border-slate-200/80
-                bg-white/80
-                p-1.5
-                shadow-sm
-                backdrop-blur
-              "
-            >
-              {tabs.map((tab) => {
-                const active =
-                  activeTab === tab;
+            {tabs.map((tab) => {
+              const active = activeTab === tab;
 
-                return (
-                  <button
-                    key={tab}
-                    type="button"
-                    onClick={() =>
-                      setActiveTab(tab)
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => setActiveTab(tab)}
+                  className={`
+                    min-h-10
+                    shrink-0
+                    rounded-full
+                    px-4
+                    py-2
+                    text-sm
+                    font-semibold
+                    transition
+                    ${
+                      active
+                        ? "bg-[#D9515E] text-white"
+                        : "border border-[#EAE5E2] bg-white text-slate-600 hover:border-[#E8B8BC] hover:bg-[#FFF1F0] hover:text-[#CA4D59]"
                     }
-                    className={`
-                      rounded-xl
-                      px-4
-                      py-2.5
-                      text-sm
-                      font-semibold
-                      transition
-                      ${
-                        active
-                          ? "bg-blue-600 text-white shadow-sm shadow-blue-600/20"
-                          : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
-                      }
-                    `}
-                  >
-                    {tab}
-                  </button>
-                );
-              })}
-            </div>
+                  `}
+                >
+                  {tab}
+                </button>
+              );
+            })}
+          </div>
 
-            <p className="text-sm text-slate-500">
-              当前显示
-              <span className="mx-1.5 font-black text-blue-600">
-                {list.length}
-              </span>
-              所推荐学校
+          <p className="shrink-0 text-xs text-slate-500">
+            当前显示{" "}
+            <span className="font-bold text-slate-800">
+              {visibleSchools.length}
+            </span>{" "}
+            条资料
+          </p>
+        </div>
+
+        {/* 学校卡片 */}
+        {visibleSchools.length > 0 ? (
+          <div
+            className="
+              mt-7
+              grid
+              grid-cols-1
+              gap-5
+              md:grid-cols-2
+              xl:grid-cols-3
+            "
+          >
+            {visibleSchools.map((school) => (
+              <SchoolCard
+                key={school.id}
+                {...school}
+              />
+            ))}
+          </div>
+        ) : (
+          <div
+            className="
+              mt-7
+              rounded-2xl
+              border
+              border-dashed
+              border-[#E8E1DE]
+              bg-white
+              px-5
+              py-12
+              text-center
+            "
+          >
+            <p className="font-semibold text-slate-800">
+              暂时没有近期截止日期资料
+            </p>
+
+            <p className="mt-2 text-sm text-slate-500">
+              这不代表学校停止招生，可以进入学校中心继续查看。
             </p>
           </div>
+        )}
 
-          {/* Cards */}
+        {/* Mock 数据说明 */}
+        <p
+          className="
+            mt-5
+            text-center
+            text-xs
+            leading-5
+            text-slate-400
+          "
+        >
+          当前为示例数据，非真实招生公告。
+          正式申请前请核对学校官方募集要项。
+        </p>
 
-          {list.length > 0 ? (
-            <div
-              className="
-                mt-10
-                grid
-                grid-cols-1
-                gap-6
-                md:grid-cols-2
-                xl:grid-cols-3
-              "
-            >
-              {list.map((school) => (
-                <SchoolCard
-                  key={school.id}
-                  {...school}
-                />
-              ))}
-            </div>
-          ) : (
-            <div
-              className="
-                mt-10
-                flex
-                min-h-[260px]
-                items-center
-                justify-center
-                rounded-[28px]
-                border
-                border-dashed
-                border-slate-300
-                bg-white/70
-              "
-            >
-              <div className="text-center">
-                <p className="font-bold text-slate-800">
-                  暂时没有相关学校
-                </p>
+        {/* 更多 */}
+        <div className="mt-7 flex justify-center">
+          <Link
+            href={moreLinks[activeTab]}
+            className="
+              inline-flex
+              min-h-11
+              items-center
+              justify-center
+              gap-2
+              rounded-full
+              border
+              border-[#E6D9D7]
+              bg-white
+              px-6
+              text-sm
+              font-semibold
+              text-[#B94855]
+              transition
+              hover:border-[#D9515E]
+              hover:bg-[#FFF1F0]
+            "
+          >
+            {activeTab === "全部"
+              ? "查看全部学校"
+              : `查看更多${activeTab}`}
 
-                <p className="mt-2 text-sm text-slate-500">
-                  当前 mock 数据还没有覆盖这个分类。
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Bottom */}
-
-          <div className="mt-12 flex justify-center">
-            <Link
-              href={getMoreHref()}
-              className="
-                inline-flex
-                h-12
-                items-center
-                justify-center
-                rounded-full
-                bg-slate-950
-                px-7
-                text-sm
-                font-bold
-                text-white
-                transition
-                hover:-translate-y-0.5
-                hover:bg-blue-600
-              "
-            >
-              {activeTab === "全部"
-                ? "进入学校中心"
-                : `查看更多${activeTab}`}
-
-              <span className="ml-2">
-                →
-              </span>
-            </Link>
-          </div>
+            <ArrowRight size={16} />
+          </Link>
         </div>
       </Container>
     </Section>

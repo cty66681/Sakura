@@ -1,4 +1,6 @@
+
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 
 import Container from "@/components/layout/Container";
 import Section from "@/components/layout/Section";
@@ -7,6 +9,8 @@ import SectionHeader from "@/components/ui/SectionHeader";
 import ScamCard from "../ScamCard";
 
 import { scams } from "@/data/scams";
+
+const PREVIEW_LIMIT = 3;
 
 /*
 |--------------------------------------------------------------------------
@@ -20,140 +24,131 @@ import { scams } from "@/data/scams";
 | Query:
 | {
 |   featured: true,
-|   limit: 6
+|   limit: 3
 | }
 |
-| 当前阶段使用 "@/data/scams" mock 数据。
+| 当前使用 "@/data/scams" Mock 数据。
+|
+| 正式接入后台后：
+| - 只返回审核通过、允许公开展示的内容
+| - 区分风险提醒、经验分享与尚未核实的举报
+| - 不将用户举报直接表述为已经确认的事实
 |
 |--------------------------------------------------------------------------
 */
 
 export default function ScamSection() {
-  const list = scams.slice(0, 6);
+  const list = scams.slice(0, PREVIEW_LIMIT);
 
   return (
     <Section
       className="
-        relative
-        overflow-hidden
-        bg-rose-50/70
+        border-t
+        border-[#F0EBE8]
+        bg-[#FFF9F8]
       "
     >
-      {/* Background decoration */}
-
-      <div
-        className="
-          pointer-events-none
-          absolute
-          -right-40
-          top-10
-          h-[420px]
-          w-[420px]
-          rounded-full
-          bg-orange-200/30
-          blur-3xl
-        "
-      />
-
-      <div
-        className="
-          pointer-events-none
-          absolute
-          -left-40
-          bottom-0
-          h-[360px]
-          w-[360px]
-          rounded-full
-          bg-rose-200/30
-          blur-3xl
-        "
-      />
-
       <Container>
-        <div className="relative z-10">
-          <SectionHeader
-            badge="避坑提醒"
-            title="有些坑，提前知道就能避开"
-            description="租房、求职、留学、消费和生活中的常见问题，整理真实案例和注意事项。"
-            href="/scam"
-            actionText="查看全部避坑"
-          />
+        <SectionHeader
+          badge="避坑提醒"
+          title="这些常见问题，提前了解一下"
+          description="租房、求职、留学和日常消费，看看有哪些值得注意的风险与经验。"
+          href="/scam"
+          actionText="查看全部避坑"
+        />
 
-          {/* Cards */}
-
-          {list.length > 0 ? (
-            <div
-              className="
-                mt-10
-                grid
-                grid-cols-1
-                gap-6
-                md:grid-cols-2
-                xl:grid-cols-3
-              "
-            >
-              {list.map((item) => (
-                <ScamCard
-                  key={item.id}
-                  {...item}
-                />
-              ))}
-            </div>
-          ) : (
-            <div
-              className="
-                mt-10
-                flex
-                min-h-[240px]
-                items-center
-                justify-center
-                rounded-[28px]
-                border
-                border-dashed
-                border-rose-200
-                bg-white/70
-              "
-            >
-              <div className="text-center">
-                <p className="font-bold text-slate-800">
-                  暂时没有避坑内容
-                </p>
-
-                <p className="mt-2 text-sm text-slate-500">
-                  后续会持续补充新的案例和提醒。
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Bottom */}
-
-          <div className="mt-12 flex justify-center">
-            <Link
-              href="/scam"
-              className="
-                inline-flex
-                h-12
-                items-center
-                justify-center
-                rounded-full
-                bg-slate-950
-                px-7
-                text-sm
-                font-bold
-                text-white
-                transition-all
-                duration-200
-                hover:-translate-y-0.5
-                hover:bg-rose-600
-              "
-            >
-              查看更多避坑案例
-              <span className="ml-2">
-                →
-              </span>
-            </Link>
+        {/* 首页最多展示 3 张卡片 */}
+        {list.length > 0 ? (
+          <div
+            className="
+              mt-8
+              grid
+              grid-cols-1
+              gap-5
+              md:grid-cols-2
+              xl:grid-cols-3
+            "
+          >
+            {list.map((item) => (
+              <ScamCard
+                key={item.id}
+                {...item}
+              />
+            ))}
           </div>
+        ) : (
+          <div
+            className="
+              mt-8
+              flex
+              min-h-[170px]
+              items-center
+              justify-center
+              rounded-2xl
+              border
+              border-dashed
+              border-[#EADBD8]
+              bg-white
+              px-5
+              text-center
+            "
+          >
+            <div>
+              <p
+                className="
+                  font-semibold
+                  text-[#30343B]
+                "
+              >
+                暂时没有避坑内容
+              </p>
+
+              <p
+                className="
+                  mt-2
+                  text-sm
+                  text-[#898B91]
+                "
+              >
+                有新内容后，会在这里展示。
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* 查看更多 */}
+        <div
+          className="
+            mt-8
+            flex
+            justify-center
+          "
+        >
+          <Link
+            href="/scam"
+            className="
+              inline-flex
+              min-h-11
+              items-center
+              justify-center
+              gap-2
+              rounded-full
+              border
+              border-[#E6D9D7]
+              bg-white
+              px-6
+              text-sm
+              font-semibold
+              text-[#B94855]
+              transition
+              hover:border-[#D9515E]
+              hover:bg-[#FFF1F0]
+            "
+          >
+            查看更多避坑内容
+
+            <ArrowRight size={16} />
+          </Link>
         </div>
       </Container>
     </Section>

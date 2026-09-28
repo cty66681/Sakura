@@ -17,6 +17,12 @@ import Avatar from "@/components/ui/Avatar";
 import MobileMenu from "./MobileMenu";
 
 import {
+  MOCK_CURRENT_USER_ID,
+  getTotalUnreadCount,
+  useChatStore,
+} from "@/store/chatStore";
+
+import {
   Bell,
   Bookmark,
   MessageCircle,
@@ -106,6 +112,25 @@ export default function HeaderActions() {
     notificationList.filter(
       (item) => item.unread
     ).length;
+
+  const conversations = useChatStore(
+    (state) => state.conversations
+  );
+
+  const messages = useChatStore(
+    (state) => state.messages
+  );
+
+  const readReceipts = useChatStore(
+    (state) => state.readReceipts
+  );
+
+  const chatUnreadCount = getTotalUnreadCount(
+    conversations,
+    messages,
+    readReceipts,
+    MOCK_CURRENT_USER_ID
+  );
 
   useEffect(() => {
     function handlePointerDown(
@@ -415,6 +440,32 @@ export default function HeaderActions() {
         <span className="hidden xl:inline">
           聊天
         </span>
+
+        {chatUnreadCount > 0 && (
+          <span
+            aria-label={`${chatUnreadCount} 条未读消息`}
+            className="
+              absolute
+              -right-1
+              top-0
+              flex
+              h-5
+              min-w-5
+              items-center
+              justify-center
+              rounded-full
+              bg-red-500
+              px-1
+              text-[10px]
+              font-bold
+              text-white
+            "
+          >
+            {chatUnreadCount > 99
+              ? "99+"
+              : chatUnreadCount}
+          </span>
+        )}
       </Link>
 
       {/* Publish */}

@@ -3,6 +3,7 @@
 import {
   Fragment,
   type FormEvent,
+  useEffect,
   useState,
 } from "react";
 
@@ -412,6 +413,18 @@ export default function AccountMessagesPage() {
         state.messages
     );
 
+  const readReceipts =
+    useChatStore(
+      (state) =>
+        state.readReceipts
+    );
+
+  const markMessagesRead =
+    useChatStore(
+      (state) =>
+        state.markMessagesRead
+    );
+
   const sendTextMessage =
     useChatStore(
       (state) =>
@@ -527,12 +540,55 @@ export default function AccountMessagesPage() {
         */
 
   const selectedMessages =
-    selectedConversation
-      ? getConversationMessages(
-          messages,
-          selectedConversation.id
-        )
-      : [];
+      selectedConversation
+        ? getConversationMessages(
+            messages,
+            selectedConversation.id
+          )
+        : [];
+
+    useEffect(() => {
+    if (!selectedConversationId) {
+      return;
+    }
+
+    function markAsRead() {
+      if (
+        document.visibilityState !==
+        "visible"
+      ) {
+        return;
+      }
+
+      markMessagesRead({
+        conversationId:
+          selectedConversationId,
+        readerId:
+          MOCK_CURRENT_USER_ID,
+        scope: {
+          type: "conversation",
+        },
+      });
+    }
+
+    markAsRead();
+
+    document.addEventListener(
+      "visibilitychange",
+      markAsRead
+    );
+
+    return () => {
+      document.removeEventListener(
+        "visibilitychange",
+        markAsRead
+      );
+    };
+  }, [
+    selectedConversationId,
+    messages,
+    markMessagesRead,
+  ]);
 
   function selectConversation(
     conversationId: string
@@ -765,6 +821,32 @@ export default function AccountMessagesPage() {
                           conversationMessages.length - 1
                         ] ?? null;
 
+                      
+                      const readMessageIds =
+                        new Set(
+                          readReceipts
+                            .filter(
+                              (receipt) =>
+                                receipt.userId ===
+                                MOCK_CURRENT_USER_ID
+                            )
+                            .map(
+                              (receipt) =>
+                                receipt.messageId
+                            )
+                        );
+
+                      const unreadCount =
+                        conversationMessages.filter(
+                          (message) =>
+                            message.senderId !==
+                              MOCK_CURRENT_USER_ID &&
+                            message.type !== "system" &&
+                            !readMessageIds.has(
+                              message.id
+                            )
+                        ).length;
+
                       const active =
                         conversation.id ===
                         selectedConversationId;
@@ -873,6 +955,30 @@ export default function AccountMessagesPage() {
                                   lastMessage
                                 )}
                               </p>
+
+                              {unreadCount > 0 && (
+                                <span
+                                  aria-label={`${unreadCount} 条未读消息`}
+                                  className="
+                                    flex
+                                    h-5
+                                    min-w-5
+                                    shrink-0
+                                    items-center
+                                    justify-center
+                                    rounded-full
+                                    bg-red-500
+                                    px-1.5
+                                    text-[10px]
+                                    font-bold
+                                    text-white
+                                  "
+                                >
+                                  {unreadCount > 99
+                                    ? "99+"
+                                    : unreadCount}
+                                </span>
+                              )}
 
                             </div>
                           </div>
