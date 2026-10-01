@@ -5,12 +5,15 @@ import {
   useRouter,
   useSearchParams,
 } from "next/navigation";
+
 import {
   Suspense,
   type ReactNode,
+  useEffect,
   useMemo,
   useState,
 } from "react";
+
 import {
   ArrowLeft,
   BriefcaseBusiness,
@@ -31,7 +34,6 @@ import {
 import Container from "@/components/layout/Container";
 
 import {
-  HOUSE_LISTING_STATUS_LABELS,
   type HouseListingStatus,
 } from "@/data/houses";
 
@@ -70,6 +72,48 @@ interface UserPost {
   views: number;
 
   href?: string;
+}
+
+interface AccountHouseApi {
+  id: number;
+
+  title: string;
+
+  rent: number;
+  managementFee: number;
+
+  layout: string;
+  area: number;
+
+  prefecture: string;
+  city: string;
+
+  moderationStatus:
+    | "draft"
+    | "pending"
+    | "approved"
+    | "rejected"
+    | "hidden";
+
+  listingStatus:
+    | "available"
+    | "paused"
+    | "rented"
+    | "expired"
+    | "hidden";
+
+  views: number;
+
+  createdAt: string;
+  updatedAt: string;
+
+  location: string;
+}
+
+interface AccountHousesApiResponse {
+  success: boolean;
+  data: AccountHouseApi[];
+  error?: string;
 }
 
 /*
@@ -129,45 +173,6 @@ interface UserPost {
 
 const mockPosts: UserPost[] = [
   {
-    id: 1,
-    type: "house",
-    title: "池袋 1LDK",
-    summary:
-      "池袋站步行8分钟，可养宠物，免礼金。",
-    status: "published",
-    listingStatus: "available",
-    createdAt: "2026-08-20",
-    updatedAt: "2026-08-28",
-    views: 356,
-    href: "/houses/1",
-  },
-  {
-    id: 2,
-    type: "house",
-    title: "新宿 Studio",
-    summary:
-      "新宿核心区域，家具家电齐全。",
-    status: "published",
-    listingStatus: "paused",
-    createdAt: "2026-08-29",
-    updatedAt: "2026-09-01",
-    views: 128,
-    href: "/houses/2",
-  },
-  {
-    id: 3,
-    type: "house",
-    title: "中野 1DK",
-    summary:
-      "南向采光，可咨询宠物入住条件。",
-    status: "published",
-    listingStatus: "rented",
-    createdAt: "2026-08-30",
-    updatedAt: "2026-09-03",
-    views: 209,
-    href: "/houses/3",
-  },
-  {
     id: 4,
     type: "job",
     title: "React Frontend Engineer",
@@ -219,41 +224,6 @@ const typeOptions = [
   { value: "scam", label: "避坑" },
 ] as const;
 
-const statusOptions = [
-  { value: "all", label: "全部发布状态" },
-  { value: "published", label: "已发布" },
-  { value: "pending", label: "审核中" },
-  { value: "draft", label: "草稿" },
-  { value: "rejected", label: "未通过" },
-] as const;
-
-const houseListingStatusOptions = [
-  {
-    value: "all",
-    label: "全部房源状态",
-  },
-  {
-    value: "available",
-    label: "可申请",
-  },
-  {
-    value: "paused",
-    label: "暂停受理",
-  },
-  {
-    value: "rented",
-    label: "已出租",
-  },
-  {
-    value: "expired",
-    label: "已过期",
-  },
-  {
-    value: "hidden",
-    label: "已隐藏",
-  },
-] as const;
-
 function AccountPostsPageContent() {
   const searchParams = useSearchParams();
 
@@ -265,6 +235,147 @@ function AccountPostsPageContent() {
 
   const [posts, setPosts] =
     useState<UserPost[]>(mockPosts);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadRealHouses() {
+      try {
+        const response =
+          await fetch(
+            "/api/account/houses",
+            {
+              method: "GET",
+              cache: "no-store",
+            }
+          );
+
+        const result:
+          AccountHousesApiResponse =
+          await response.json();
+
+        if (
+          !response.ok ||
+          !result.success
+        ) {
+          throw new Error(
+            result.error ||
+              "获取房源失败"
+          );
+        }
+
+        if (cancelled) {
+          return;
+        }
+
+        const housePosts:
+          UserPost[] =
+          result.data
+            .filter(
+              (house) =>
+                house.moderationStatus !==
+                "hidden"
+            )
+            .map((house) => {
+              let status:
+                PostStatus;
+
+              switch (
+                house.moderationStatus
+              ) {
+                case "draft":
+                  status = "draft";
+                  break;
+
+                case "pending":
+                  status = "pending";
+                  break;
+
+                case "approved":
+                  status = "published";
+                  break;
+
+                case "rejected":
+                  status = "rejected";
+                  break;
+
+                default:
+                  status = "draft";
+              }
+
+              return {
+                id: house.id,
+
+                type:
+                  "house" as const,
+
+                title:
+                  house.title,
+
+                summary: [
+                  house.location,
+                  house.layout,
+                  house.area > 0
+                    ? `${house.area}㎡`
+                    : "",
+                  house.rent > 0
+                    ? `¥${house.rent.toLocaleString(
+                        "ja-JP"
+                      )}/月`
+                    : "",
+                ]
+                  .filter(Boolean)
+                  .join(" · "),
+
+                status,
+
+                listingStatus:
+                  house.listingStatus,
+
+                createdAt:
+                  house.createdAt,
+
+                updatedAt:
+                  house.updatedAt,
+
+                views:
+                  house.views,
+
+                href:
+                  house.moderationStatus ===
+                    "approved" &&
+                  house.listingStatus ===
+                    "available"
+                    ? `/houses/${house.id}`
+                    : undefined,
+              };
+            });
+
+        setPosts(
+          (current) => [
+            ...current.filter(
+              (post) =>
+                post.type !==
+                "house"
+            ),
+
+            ...housePosts,
+          ]
+        );
+      } catch (error) {
+        console.error(
+          "[GET /api/account/houses]",
+          error
+        );
+      }
+    }
+
+    void loadRealHouses();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const [searchInput, setSearchInput] =
     useState("");
@@ -322,13 +433,6 @@ function AccountPostsPageContent() {
     "all" | HouseListingStatus
   >("all");
 
-  const [
-    rentedTarget,
-    setRentedTarget,
-  ] = useState<UserPost | null>(
-    null
-  );
-
   const isHouseMode =
     type === "house";
 
@@ -362,7 +466,20 @@ function AccountPostsPageContent() {
 
     if (status !== "all") {
       result = result.filter(
-        (post) => post.status === status
+        (post) => {
+          if (
+            type === "house" &&
+            status === "published"
+          ) {
+            return (
+              post.type === "house" &&
+              post.status === "published" &&
+              post.listingStatus === "available"
+            );
+          }
+
+          return post.status === status;
+        }
       );
     }
 
@@ -426,7 +543,35 @@ function AccountPostsPageContent() {
         scopedPosts.filter(
           (post) =>
             post.status ===
-            "published"
+              "published" &&
+            (
+              post.type !==
+                "house" ||
+              post.listingStatus ===
+                "available"
+            )
+        ).length,
+
+      paused:
+        scopedPosts.filter(
+          (post) =>
+            post.type ===
+              "house" &&
+            post.status ===
+              "published" &&
+            post.listingStatus ===
+              "paused"
+        ).length,
+
+      rented:
+        scopedPosts.filter(
+          (post) =>
+            post.type ===
+              "house" &&
+            post.status ===
+              "published" &&
+            post.listingStatus ===
+              "rented"
         ).length,
 
       pending:
@@ -468,120 +613,6 @@ function AccountPostsPageContent() {
     );
 
     setSort("updated");
-  }
-
-  function handleHouseListingStatusChange(
-    postId: number,
-    nextStatus:
-      | "available"
-      | "paused"
-      | "rented"
-  ) {
-    /*
-    * TODO [API - PATCH]
-    *
-    * PATCH /api/houses/:id/status
-    *
-    * Body:
-    *
-    * {
-    *   listingStatus:
-    *     "available"
-    *     | "paused"
-    *     | "rented"
-    * }
-    *
-    * 后端必须：
-    *
-    * 1. 从 Session 获取当前 userId
-    *
-    * 2. 查询真实 house
-    *
-    * 3. 验证：
-    *
-    *    house.authorId === session.user.id
-    *
-    * 4. 绝对不能相信前端传 authorId
-    *
-    * 5. 只允许：
-    *
-    *    available -> paused
-    *    paused    -> available
-    *
-    *    available -> rented
-    *    paused    -> rented
-    *
-    * 6. expired：
-    *    后台自动任务处理
-    *
-    * 7. hidden：
-    *    管理员处理
-    *
-    * 8. 用户咨询 / 聊天 / 申请联系方式
-    *    永远不能修改 listingStatus
-    *
-    * 9. paused / rented 后：
-    *    禁止创建新的房源咨询；
-    *    已存在的会话仍然保留。
-    */
-
-    setPosts((current) =>
-      current.map((post) => {
-        if (
-          post.id !== postId ||
-          post.type !== "house" ||
-          post.status !==
-            "published" ||
-          !post.listingStatus
-        ) {
-          return post;
-        }
-
-        const currentStatus =
-          post.listingStatus;
-
-        const allowed =
-          (currentStatus ===
-            "available" &&
-            (
-              nextStatus ===
-                "paused" ||
-              nextStatus ===
-                "rented"
-            )) ||
-          (currentStatus ===
-            "paused" &&
-            (
-              nextStatus ===
-                "available" ||
-              nextStatus ===
-                "rented"
-            ));
-
-        if (!allowed) {
-          return post;
-        }
-
-        return {
-          ...post,
-          listingStatus:
-            nextStatus,
-        };
-      })
-    );
-  }
-
-  function handleConfirmRented() {
-    if (!rentedTarget) {
-      return;
-    }
-
-    handleHouseListingStatusChange(
-      rentedTarget.id,
-      "rented"
-    );
-
-    setRentedTarget(null);
   }
 
   function handleDelete() {
@@ -677,9 +708,7 @@ function AccountPostsPageContent() {
                     text-blue-600
                   "
                 >
-                  {isHouseMode
-                    ? "MY HOUSES"
-                    : "MY POSTS"}
+                  MY POSTS
                 </p>
 
                 <h1
@@ -691,9 +720,7 @@ function AccountPostsPageContent() {
                     text-slate-950
                   "
                 >
-                  {isHouseMode
-                    ? "我的房源"
-                    : "我的发布"}
+                  我的发布
                 </h1>
 
                 <p
@@ -705,42 +732,68 @@ function AccountPostsPageContent() {
                   "
                 >
                   {isHouseMode
-                    ? "管理你发布的房源、受理状态和公开状态。"
+                    ? "当前筛选：房源"
                     : "管理你发布的房源、工作、经验和避坑内容。"}
                 </p>
               </div>
 
-              <Link
-                href={
-                  isHouseMode
-                    ? "/account/publish?type=house"
-                    : "/account/publish"
-                }
-                className="
-                  inline-flex
-                  w-fit
-                  items-center
-                  justify-center
-                  gap-2
-                  rounded-xl
-                  bg-blue-600
-                  px-5
-                  py-3
-                  text-sm
-                  font-black
-                  text-white
-                  shadow-lg
-                  shadow-blue-600/15
-                  transition
-                  hover:bg-blue-700
-                "
-              >
-                <Plus size={18} />
+              <div className="flex flex-wrap gap-2">
+                {isHouseMode && (
+                  <Link
+                    href="/account/houses"
+                    className="
+                      inline-flex
+                      items-center
+                      justify-center
+                      rounded-xl
+                      border
+                      border-slate-200
+                      bg-white
+                      px-5
+                      py-3
+                      text-sm
+                      font-black
+                      text-slate-700
+                      transition
+                      hover:bg-slate-50
+                    "
+                  >
+                    管理全部房源
+                  </Link>
+                )}
 
-                {isHouseMode
-                  ? "发布房源"
-                  : "发布新内容"}
-              </Link>
+                <Link
+                  href={
+                    isHouseMode
+                      ? "/houses/new"
+                      : "/account/publish"
+                  }
+                  className="
+                    inline-flex
+                    w-fit
+                    items-center
+                    justify-center
+                    gap-2
+                    rounded-xl
+                    bg-blue-600
+                    px-5
+                    py-3
+                    text-sm
+                    font-black
+                    text-white
+                    shadow-lg
+                    shadow-blue-600/15
+                    transition
+                    hover:bg-blue-700
+                  "
+                >
+                  <Plus size={18} />
+
+                  {isHouseMode
+                    ? "发布房源"
+                    : "发布新内容"}
+                </Link>
+              </div>
             </div>
 
             {/* ================================================= */}
@@ -753,39 +806,80 @@ function AccountPostsPageContent() {
                 grid
                 grid-cols-2
                 gap-3
-                lg:grid-cols-5
+                lg:grid-cols-7
               "
             >
               <StatusButton
                 label="全部"
                 value={counts.all}
-                active={status === "all"}
-                onClick={() =>
-                  setStatus("all")
+                active={
+                  status === "all" &&
+                  (
+                    !isHouseMode ||
+                    houseListingStatus === "all"
+                  )
                 }
+                onClick={() => {
+                  setStatus("all");
+                  setHouseListingStatus("all");
+                }}
               />
 
               <StatusButton
                 label="已发布"
                 value={counts.published}
                 active={
-                  status === "published"
+                  status === "published" &&
+                  houseListingStatus === "all"
                 }
-                onClick={() =>
-                  setStatus("published")
-                }
+                onClick={() => {
+                  setStatus("published");
+                  setHouseListingStatus("all");
+                }}
                 color="emerald"
               />
+
+              {isHouseMode && (
+                <>
+                  <StatusButton
+                    label="已暂停"
+                    value={counts.paused}
+                    active={
+                      status === "all" &&
+                      houseListingStatus === "paused"
+                    }
+                    onClick={() => {
+                      setStatus("all");
+                      setHouseListingStatus("paused");
+                    }}
+                  />
+
+                  <StatusButton
+                    label="已出租"
+                    value={counts.rented}
+                    active={
+                      status === "all" &&
+                      houseListingStatus === "rented"
+                    }
+                    onClick={() => {
+                      setStatus("all");
+                      setHouseListingStatus("rented");
+                    }}
+                  />
+                </>
+              )}
 
               <StatusButton
                 label="审核中"
                 value={counts.pending}
                 active={
-                  status === "pending"
+                  status === "pending" &&
+                  houseListingStatus === "all"
                 }
-                onClick={() =>
-                  setStatus("pending")
-                }
+                onClick={() => {
+                  setStatus("pending");
+                  setHouseListingStatus("all");
+                }}
                 color="amber"
               />
 
@@ -793,22 +887,26 @@ function AccountPostsPageContent() {
                 label="草稿"
                 value={counts.draft}
                 active={
-                  status === "draft"
+                  status === "draft" &&
+                  houseListingStatus === "all"
                 }
-                onClick={() =>
-                  setStatus("draft")
-                }
+                onClick={() => {
+                  setStatus("draft");
+                  setHouseListingStatus("all");
+                }}
               />
 
               <StatusButton
                 label="未通过"
                 value={counts.rejected}
                 active={
-                  status === "rejected"
+                  status === "rejected" &&
+                  houseListingStatus === "all"
                 }
-                onClick={() =>
-                  setStatus("rejected")
-                }
+                onClick={() => {
+                  setStatus("rejected");
+                  setHouseListingStatus("all");
+                }}
                 color="rose"
               />
             </div>
@@ -949,56 +1047,6 @@ function AccountPostsPageContent() {
                   )}
                 </SelectBox>
 
-                {/* Status */}
-
-                <SelectBox
-                  value={status}
-                  onChange={(value) =>
-                    setStatus(
-                      value as
-                        | "all"
-                        | PostStatus
-                    )
-                  }
-                >
-                  {statusOptions.map(
-                    (item) => (
-                      <option
-                        key={item.value}
-                        value={item.value}
-                      >
-                        {item.label}
-                      </option>
-                    )
-                  )}
-                </SelectBox>
-
-                {isHouseMode && (
-                  <SelectBox
-                    value={
-                      houseListingStatus
-                    }
-                    onChange={(value) =>
-                      setHouseListingStatus(
-                        value as
-                          | "all"
-                          | HouseListingStatus
-                      )
-                    }
-                  >
-                    {houseListingStatusOptions.map(
-                      (item) => (
-                        <option
-                          key={item.value}
-                          value={item.value}
-                        >
-                          {item.label}
-                        </option>
-                      )
-                    )}
-                  </SelectBox>
-                )}
-
                 {/* Sort */}
 
                 <SelectBox
@@ -1062,23 +1110,6 @@ function AccountPostsPageContent() {
                     />
                   )}
 
-                  {isHouseMode &&
-                    houseListingStatus !==
-                      "all" && (
-                      <FilterChip
-                        label={
-                          HOUSE_LISTING_STATUS_LABELS[
-                            houseListingStatus
-                          ]
-                        }
-                        onRemove={() =>
-                          setHouseListingStatus(
-                            "all"
-                          )
-                        }
-                      />
-                    )}
-
                   <button
                     type="button"
                     onClick={clearFilters}
@@ -1134,17 +1165,6 @@ function AccountPostsPageContent() {
                         post={post}
                         onDelete={() =>
                           setDeleteTarget(post)
-                        }
-                        onHouseListingStatusChange={(
-                          nextStatus
-                        ) =>
-                          handleHouseListingStatusChange(
-                            post.id,
-                            nextStatus
-                          )
-                        }
-                        onMarkRented={() =>
-                          setRentedTarget(post)
                         }
                       />
                     )
@@ -1336,124 +1356,6 @@ function AccountPostsPageContent() {
         </div>
       )}
 
-      {rentedTarget && (
-        <div
-          className="
-            fixed
-            inset-0
-            z-50
-            flex
-            items-center
-            justify-center
-            bg-slate-950/60
-            p-4
-            backdrop-blur-sm
-          "
-        >
-          <div
-            className="
-              w-full
-              max-w-md
-              rounded-[24px]
-              bg-white
-              p-6
-              shadow-2xl
-            "
-          >
-            <div
-              className="
-                flex
-                h-11
-                w-11
-                items-center
-                justify-center
-                rounded-xl
-                bg-slate-100
-                text-slate-700
-              "
-            >
-              <Home size={20} />
-            </div>
-
-            <h2
-              className="
-                mt-5
-                text-xl
-                font-black
-                text-slate-950
-              "
-            >
-              确认房源已经出租？
-            </h2>
-
-            <p
-              className="
-                mt-2
-                text-sm
-                leading-6
-                text-slate-500
-              "
-            >
-              「{rentedTarget.title}」
-              标记为已出租后，
-              将停止接受新的房源咨询。
-              已存在的聊天记录不会删除。
-            </p>
-
-            <div
-              className="
-                mt-6
-                flex
-                justify-end
-                gap-3
-              "
-            >
-              <button
-                type="button"
-                onClick={() =>
-                  setRentedTarget(
-                    null
-                  )
-                }
-                className="
-                  rounded-xl
-                  border
-                  border-slate-200
-                  px-4
-                  py-2.5
-                  text-sm
-                  font-bold
-                  text-slate-600
-                  transition
-                  hover:bg-slate-50
-                "
-              >
-                取消
-              </button>
-
-              <button
-                type="button"
-                onClick={
-                  handleConfirmRented
-                }
-                className="
-                  rounded-xl
-                  bg-slate-950
-                  px-4
-                  py-2.5
-                  text-sm
-                  font-bold
-                  text-white
-                  transition
-                  hover:bg-slate-800
-                "
-              >
-                确认已出租
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </main>
   );
 }
@@ -1480,24 +1382,14 @@ export default function AccountPostsPage() {
 /* POST CARD */
 /* ================================================= */
 
-function PostCard({
-  post,
-  onDelete,
-  onHouseListingStatusChange,
-  onMarkRented,
-}: {
-  post: UserPost;
+  function PostCard({
+    post,
+    onDelete,
+  }: {
+    post: UserPost;
 
-  onDelete: () => void;
-
-  onHouseListingStatusChange: (
-    nextStatus:
-      | "available"
-      | "paused"
-  ) => void;
-
-  onMarkRented: () => void;
-}) {
+    onDelete: () => void;
+  }) {
 
   const editHref =
     `/account/posts/${post.type}/${post.id}/edit`;
@@ -1583,22 +1475,16 @@ function PostCard({
                 {getTypeLabel(post.type)}
               </span>
 
-              <StatusBadge
-                status={post.status}
-              />
-            </div>
-
-            {post.type === "house" &&
-              post.status ===
-                "published" &&
-              post.listingStatus && (
-                <HouseListingStatusBadge
-                  status={
-                    post.listingStatus
-                  }
+              {post.type === "house" ? (
+                <HouseFinalStatusBadge
+                  post={post}
+                />
+              ) : (
+                <StatusBadge
+                  status={post.status}
                 />
               )}
-
+            </div>
             <h2
               className="
                 mt-2
@@ -1708,97 +1594,29 @@ function PostCard({
 
         {/* Actions */}
 
-        {post.type === "house" &&
-          post.status ===
-            "published" &&
-          post.listingStatus ===
-            "available" && (
-            <button
-              type="button"
-              onClick={() =>
-                onHouseListingStatusChange(
-                  "paused"
-                )
-              }
-              className="
-                rounded-xl
-                border
-                border-amber-200
-                bg-amber-50
-                px-3.5
-                py-2.5
-                text-xs
-                font-bold
-                text-amber-700
-                transition
-                hover:bg-amber-100
-              "
-            >
-              暂停受理
-            </button>
-          )}
-
-        {post.type === "house" &&
-          post.status ===
-            "published" &&
-          post.listingStatus ===
-            "paused" && (
-            <button
-              type="button"
-              onClick={() =>
-                onHouseListingStatusChange(
-                  "available"
-                )
-              }
-              className="
-                rounded-xl
-                border
-                border-emerald-200
-                bg-emerald-50
-                px-3.5
-                py-2.5
-                text-xs
-                font-bold
-                text-emerald-700
-                transition
-                hover:bg-emerald-100
-              "
-            >
-              恢复受理
-            </button>
-          )}
-
-        {post.type === "house" &&
-          post.status ===
-            "published" &&
-          (
-            post.listingStatus ===
-              "available" ||
-            post.listingStatus ===
-              "paused"
-          ) && (
-            <button
-              type="button"
-              onClick={
-                onMarkRented
-              }
-              className="
-                rounded-xl
-                border
-                border-slate-300
-                bg-white
-                px-3.5
-                py-2.5
-                text-xs
-                font-bold
-                text-slate-700
-                transition
-                hover:bg-slate-100
-              "
-            >
-              标记已出租
-            </button>
-          )}
+        {post.type === "house" && (
+          <Link
+            href="/account/houses"
+            className="
+              inline-flex
+              items-center
+              gap-1.5
+              rounded-xl
+              border
+              border-blue-200
+              bg-blue-50
+              px-3.5
+              py-2.5
+              text-xs
+              font-bold
+              text-blue-700
+              transition
+              hover:bg-blue-100
+            "
+          >
+            管理房源
+          </Link>
+        )}
 
         <div
           className="
@@ -1833,57 +1651,59 @@ function PostCard({
                 查看
               </Link>
             )}
+          {post.type !== "house" && (
+            <Link
+              href={editHref}
+              className="
+                inline-flex
+                items-center
+                gap-1.5
+                rounded-xl
+                border
+                border-slate-200
+                px-3.5
+                py-2.5
+                text-xs
+                font-bold
+                text-slate-600
+                transition
+                hover:border-blue-200
+                hover:bg-blue-50
+                hover:text-blue-600
+              "
+            >
+              <Pencil size={14} />
 
-          <Link
-            href={editHref}
-            className="
-              inline-flex
-              items-center
-              gap-1.5
-              rounded-xl
-              border
-              border-slate-200
-              px-3.5
-              py-2.5
-              text-xs
-              font-bold
-              text-slate-600
-              transition
-              hover:border-blue-200
-              hover:bg-blue-50
-              hover:text-blue-600
-            "
-          >
-            <Pencil size={14} />
+              编辑
+            </Link>
+          )}
+          {post.type !== "house" && (
+            <button
+              type="button"
+              onClick={onDelete}
+              className="
+                inline-flex
+                items-center
+                gap-1.5
+                rounded-xl
+                border
+                border-slate-200
+                px-3.5
+                py-2.5
+                text-xs
+                font-bold
+                text-slate-500
+                transition
+                hover:border-rose-200
+                hover:bg-rose-50
+                hover:text-rose-600
+              "
+            >
+              <Trash2 size={14} />
 
-            编辑
-          </Link>
-
-          <button
-            type="button"
-            onClick={onDelete}
-            className="
-              inline-flex
-              items-center
-              gap-1.5
-              rounded-xl
-              border
-              border-slate-200
-              px-3.5
-              py-2.5
-              text-xs
-              font-bold
-              text-slate-500
-              transition
-              hover:border-rose-200
-              hover:bg-rose-50
-              hover:text-rose-600
-            "
-          >
-            <Trash2 size={14} />
-
-            删除
-          </button>
+              删除
+            </button>
+          )}
         </div>
       </div>
     </article>
@@ -1930,30 +1750,54 @@ function StatusBadge({
   );
 }
 
-function HouseListingStatusBadge({
-  status,
+function HouseFinalStatusBadge({
+  post,
 }: {
-  status: HouseListingStatus;
+  post: UserPost;
 }) {
-  const styles: Record<
-    HouseListingStatus,
-    string
-  > = {
-    available:
-      "border-emerald-100 bg-emerald-50 text-emerald-700",
+  let label = "草稿";
 
-    paused:
-      "border-amber-100 bg-amber-50 text-amber-700",
+  let className =
+    "bg-slate-50 text-slate-600 border-slate-200";
 
-    rented:
-      "border-slate-200 bg-slate-100 text-slate-600",
+  if (post.status === "pending") {
+    label = "审核中";
 
-    expired:
-      "border-orange-100 bg-orange-50 text-orange-700",
+    className =
+      "bg-amber-50 text-amber-700 border-amber-100";
+  }
 
-    hidden:
-      "border-rose-100 bg-rose-50 text-rose-700",
-  };
+  if (post.status === "rejected") {
+    label = "未通过";
+
+    className =
+      "bg-rose-50 text-rose-700 border-rose-100";
+  }
+
+  if (post.status === "published") {
+    if (
+      post.listingStatus ===
+      "paused"
+    ) {
+      label = "已暂停";
+
+      className =
+        "bg-slate-100 text-slate-700 border-slate-200";
+    } else if (
+      post.listingStatus ===
+      "rented"
+    ) {
+      label = "已出租";
+
+      className =
+        "bg-purple-50 text-purple-700 border-purple-100";
+    } else {
+      label = "已发布";
+
+      className =
+        "bg-emerald-50 text-emerald-700 border-emerald-100";
+    }
+  }
 
   return (
     <span
@@ -1964,14 +1808,10 @@ function HouseListingStatusBadge({
         py-1
         text-[11px]
         font-black
-        ${styles[status]}
+        ${className}
       `}
     >
-      {
-        HOUSE_LISTING_STATUS_LABELS[
-          status
-        ]
-      }
+      {label}
     </span>
   );
 }

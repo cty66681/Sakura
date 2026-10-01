@@ -29,7 +29,7 @@ const DEV_USER_NAME = "Sakura Dev User";
 |--------------------------------------------------------------------------
 */
 
-const houseSchema = z.object({
+const submitHouseSchema = z.object({
   title: z
     .string()
     .trim()
@@ -156,6 +156,158 @@ const houseSchema = z.object({
     "draft",
     "pending",
   ]),
+});
+
+const draftHouseSchema = z.object({
+  title: z
+    .string()
+    .trim()
+    .max(80)
+    .optional()
+    .default(""),
+
+  rent: z
+    .number()
+    .int()
+    .min(0)
+    .max(10_000_000)
+    .optional()
+    .default(0),
+
+  managementFee: z
+    .number()
+    .int()
+    .min(0)
+    .max(1_000_000)
+    .optional()
+    .default(0),
+
+  deposit: z
+    .string()
+    .optional()
+    .default("0个月"),
+
+  keyMoney: z
+    .string()
+    .optional()
+    .default("0个月"),
+
+  layout: z
+    .string()
+    .trim()
+    .optional()
+    .default(""),
+
+  area: z
+    .number()
+    .min(0)
+    .max(10_000)
+    .optional()
+    .default(0),
+
+  prefecture: z
+    .string()
+    .trim()
+    .optional()
+    .default(""),
+
+  city: z
+    .string()
+    .trim()
+    .optional()
+    .default(""),
+
+  address: z
+    .string()
+    .trim()
+    .optional()
+    .default(""),
+
+  nearestStation: z
+    .string()
+    .trim()
+    .optional()
+    .default(""),
+
+  stationWalk: z
+    .number()
+    .int()
+    .min(0)
+    .max(120)
+    .optional()
+    .default(0),
+
+  floor: z
+    .string()
+    .trim()
+    .optional()
+    .default(""),
+
+  builtYear: z
+    .union([
+      z.string(),
+      z.number(),
+    ])
+    .optional(),
+
+  direction: z
+    .string()
+    .trim()
+    .optional()
+    .default(""),
+
+  structure: z
+    .string()
+    .trim()
+    .optional()
+    .default(""),
+
+  availableDate: z
+    .string()
+    .trim()
+    .optional()
+    .default(""),
+
+  description: z
+    .string()
+    .trim()
+    .max(5000)
+    .optional()
+    .default(""),
+
+  tags: z
+    .array(z.string())
+    .default([]),
+
+  imageIds: z
+    .array(z.string())
+    .default([]),
+
+  contactName: z
+    .string()
+    .trim()
+    .optional()
+    .default(""),
+
+  company: z
+    .string()
+    .trim()
+    .optional()
+    .default(""),
+
+  phone: z
+    .string()
+    .trim()
+    .optional()
+    .default(""),
+
+  email: z
+    .string()
+    .trim()
+    .optional()
+    .default(""),
+
+  status: z.literal("draft"),
 });
 
 /*
@@ -320,8 +472,13 @@ export async function POST(
     const body =
       await request.json();
 
+    const status =
+      body?.status;
+
     const parsed =
-      houseSchema.safeParse(body);
+      status === "draft"
+        ? draftHouseSchema.safeParse(body)
+        : submitHouseSchema.safeParse(body);
 
     if (!parsed.success) {
       return NextResponse.json(
@@ -442,7 +599,9 @@ export async function POST(
                 publisherId:
                   publisher.id,
 
-                title: data.title,
+                title:
+                  data.title ||
+                  "未命名草稿",
 
                 rent: data.rent,
 
@@ -454,7 +613,7 @@ export async function POST(
                 keyMoneyMonths,
 
                 layout:
-                  data.layout,
+                  data.layout || "",
 
                 area:
                   data.area,
@@ -665,12 +824,8 @@ export async function GET(
     const where = {
       moderationStatus: "approved" as const,
 
-      listingStatus: {
-        in: [
-          "available" as const,
-          "paused" as const,
-        ],
-      },
+      listingStatus:
+        "available" as const,
 
       OR: [
         {

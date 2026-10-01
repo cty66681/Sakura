@@ -1,7 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { ChangeEvent, FormEvent, useMemo, useState } from "react";
+import {
+  ChangeEvent,
+  FormEvent,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   ArrowLeft,
   Building2,
@@ -60,6 +66,54 @@ interface ImageItem {
   id: string;
   file: File;
   previewUrl: string;
+}
+
+interface EditHouseResponse {
+  success: boolean;
+
+  data?: {
+    id: number;
+
+    title: string;
+
+    rent: number;
+    managementFee: number;
+
+    deposit: string;
+    keyMoney: string;
+
+    layout: string;
+    area: number;
+
+    prefecture: string;
+    city: string;
+    address: string;
+
+    nearestStation: string;
+    stationWalk: number | null;
+
+    floor: string;
+    builtYear: number | null;
+
+    direction: string;
+    structure: string;
+
+    availableDate: string;
+
+    description: string;
+
+    features: string[];
+
+    contactName: string;
+    company: string;
+
+    phone: string;
+    email: string;
+
+    moderationStatus: "draft";
+  };
+
+  error?: string;
 }
 
 const MAX_IMAGES = 10;
@@ -275,11 +329,196 @@ export default function NewHousePage() {
   const [notice, setNotice] = useState("");
   const [saving, setSaving] = useState(false);
 
+  const [houseId, setHouseId] = useState<number | null>(null);
+  const [submitted, setSubmitted] = useState(false);
+
+  const [loadingDraft, setLoadingDraft] = useState(false);
+
   const locationPreview = useMemo(() => {
     return [form.prefecture, form.city]
       .filter(Boolean)
       .join(" · ");
   }, [form.prefecture, form.city]);
+
+  useEffect(() => {
+  let cancelled = false;
+
+  async function loadDraft() {
+    const searchParams =
+      new URLSearchParams(
+        window.location.search
+      );
+
+    const editParam =
+      searchParams.get("edit");
+
+    if (!editParam) {
+      return;
+    }
+
+    const editId =
+      Number(editParam);
+
+    if (
+      !Number.isInteger(editId) ||
+      editId <= 0
+    ) {
+      if (!cancelled) {
+        setError(
+          "无效的房源编辑地址。"
+        );
+      }
+
+      return;
+    }
+
+    if (!cancelled) {
+      setLoadingDraft(true);
+    }
+
+    try {
+      const response =
+        await fetch(
+          `/api/account/houses/${editId}`,
+          {
+            method: "GET",
+            cache: "no-store",
+          }
+        );
+
+      const result: EditHouseResponse =
+        await response.json();
+
+      if (
+        !response.ok ||
+        !result.success ||
+        !result.data
+      ) {
+        throw new Error(
+          result.error ||
+            "读取房源草稿失败"
+        );
+      }
+
+      if (cancelled) {
+        return;
+      }
+
+      const house =
+        result.data;
+
+      setHouseId(
+        house.id
+      );
+
+      setForm({
+        title:
+          house.title,
+
+        rent:
+          house.rent > 0
+            ? String(house.rent)
+            : "",
+
+        managementFee:
+          house.managementFee > 0
+            ? String(
+                house.managementFee
+              )
+            : "",
+
+        deposit:
+          house.deposit,
+
+        keyMoney:
+          house.keyMoney,
+
+        layout:
+          house.layout,
+
+        area:
+          house.area > 0
+            ? String(house.area)
+            : "",
+
+        prefecture:
+          house.prefecture,
+
+        city:
+          house.city,
+
+        address:
+          house.address,
+
+        nearestStation:
+          house.nearestStation,
+
+        stationWalk:
+          house.stationWalk !== null
+            ? String(
+                house.stationWalk
+              )
+            : "",
+
+        floor:
+          house.floor,
+
+        builtYear:
+          house.builtYear !== null
+            ? String(
+                house.builtYear
+              )
+            : "",
+
+        direction:
+          house.direction,
+
+        structure:
+          house.structure,
+
+        availableDate:
+          house.availableDate,
+
+        description:
+          house.description,
+
+        contactName:
+          house.contactName,
+
+        company:
+          house.company,
+
+        phone:
+          house.phone,
+
+        email:
+          house.email,
+      });
+
+      setFeatures(
+        house.features ?? []
+      );
+    } catch (error) {
+      if (!cancelled) {
+        setError(
+          error instanceof Error
+            ? error.message
+            : "读取房源草稿失败"
+        );
+      }
+    } finally {
+      if (!cancelled) {
+        setLoadingDraft(false);
+      }
+    }
+  }
+
+  void loadDraft();
+
+  return () => {
+    cancelled = true;
+  };
+}, []);
 
   function updateField<K extends keyof HouseForm>(
     key: K,
@@ -535,120 +774,248 @@ export default function NewHousePage() {
     return "";
   }
 
-  async function saveHouse(action: PublishAction) {
-    setError("");
-    setNotice("");
+  async function saveHouse(
+  action: PublishAction
+) {
+  setError("");
+  setNotice("");
 
-    if (action === "submit") {
-      const validationError = validateForSubmit();
+  if (submitted) {
+    setError(
+      "该房源已经提交审核，暂时不能继续修改。"
+    );
+    return;
+  }
 
-      if (validationError) {
-        setError(validationError);
-        window.scrollTo({
-          top: 0,
-          behavior: "smooth",
-        });
-        return;
-      }
-    }
+  if (action === "submit") {
+    const validationError =
+      validateForSubmit();
 
-    setSaving(true);
-
-    try {
-      /*
-      ================================================================
-      TODO [API - POST] POST /api/uploads/houses
-
-      真实后端阶段：
-      1. 先上传 images
-      2. 获取 imageIds
-      3. 再 POST /api/houses
-      ================================================================
-      */
-
-      const payload = {
-        title: form.title.trim(),
-        rent: Number(form.rent || 0),
-        managementFee: Number(form.managementFee || 0),
-        deposit: form.deposit,
-        keyMoney: form.keyMoney,
-
-        layout: form.layout,
-        area: Number(form.area || 0),
-
-        prefecture: form.prefecture,
-        city: form.city.trim(),
-        address: form.address.trim(),
-        nearestStation: form.nearestStation.trim(),
-        stationWalk: Number(form.stationWalk || 0),
-
-        floor: form.floor.trim(),
-        builtYear: form.builtYear,
-        direction: form.direction,
-        structure: form.structure,
-        availableDate: form.availableDate,
-
-        description: form.description.trim(),
-
-        tags: features,
-
-        imageIds: [],
-
-        contactName: form.contactName.trim(),
-        company: form.company.trim(),
-        phone: form.phone.trim(),
-        email: form.email.trim(),
-
-        status:
-          action === "draft"
-            ? ("draft" as const)
-            : ("pending" as const),
-      };
-
-      
-      //TODO [API - POST] POST /api/houses
-
-      const response = await fetch("/api/houses", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        console.error(
-          "[POST /api/houses]",
-          result
-        );
-
-        throw new Error(
-          result?.error ||
-            "房源保存失败，请稍后重试。"
-        );
-      }
-
-      console.log(
-        "[House saved]",
-        result.house
-      );
-
-      if (action === "draft") {
-        setNotice("草稿已保存。");
-      } else {
-        setNotice("房源已提交审核。");
-      }
+    if (validationError) {
+      setError(validationError);
 
       window.scrollTo({
         top: 0,
         behavior: "smooth",
       });
-    } finally {
-      setSaving(false);
+
+      return;
     }
   }
+
+  setSaving(true);
+
+  try {
+    /*
+    |--------------------------------------------------------------------------
+    | TODO [API - POST] POST /api/uploads/houses
+    |--------------------------------------------------------------------------
+    |
+    | 图片上传完成后：
+    | 1. 先上传 images
+    | 2. 获取 imageIds
+    | 3. 再保存 / 更新房源
+    |
+    | 当前阶段 imageIds 暂时为空。
+    |
+    */
+
+    const payload = {
+      title:
+        form.title.trim(),
+
+      rent:
+        Number(
+          form.rent || 0
+        ),
+
+      managementFee:
+        Number(
+          form.managementFee ||
+            0
+        ),
+
+      deposit:
+        form.deposit,
+
+      keyMoney:
+        form.keyMoney,
+
+      layout:
+        form.layout,
+
+      area:
+        Number(
+          form.area || 0
+        ),
+
+      prefecture:
+        form.prefecture,
+
+      city:
+        form.city.trim(),
+
+      address:
+        form.address.trim(),
+
+      nearestStation:
+        form.nearestStation.trim(),
+
+      stationWalk:
+        Number(
+          form.stationWalk || 0
+        ),
+
+      floor:
+        form.floor.trim(),
+
+      builtYear:
+        form.builtYear,
+
+      direction:
+        form.direction,
+
+      structure:
+        form.structure,
+
+      availableDate:
+        form.availableDate,
+
+      description:
+        form.description.trim(),
+
+      tags:
+        features,
+
+      imageIds: [],
+
+      contactName:
+        form.contactName.trim(),
+
+      company:
+        form.company.trim(),
+
+      phone:
+        form.phone.trim(),
+
+      email:
+        form.email.trim(),
+
+      status:
+        action === "draft"
+          ? ("draft" as const)
+          : ("pending" as const),
+    };
+
+    /*
+    |--------------------------------------------------------------------------
+    | Create / Update
+    |--------------------------------------------------------------------------
+    |
+    | 第一次：
+    | POST /api/houses
+    |
+    | 已经创建草稿以后：
+    | PATCH /api/houses/:id
+    |
+    */
+
+    const isExistingHouse =
+      houseId !== null;
+
+    const endpoint =
+      isExistingHouse
+        ? `/api/houses/${houseId}`
+        : "/api/houses";
+
+    const method =
+      isExistingHouse
+        ? "PATCH"
+        : "POST";
+
+    const response =
+      await fetch(endpoint, {
+        method,
+
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+
+        body:
+          JSON.stringify(
+            payload
+          ),
+      });
+
+    const result =
+      await response.json();
+
+    if (!response.ok) {
+      console.error(
+        `[${method} ${endpoint}]`,
+        result
+      );
+
+      throw new Error(
+        result?.error ||
+          "房源保存失败，请稍后重试。"
+      );
+    }
+
+    const savedHouseId =
+      result?.house?.id;
+
+    if (
+      houseId === null &&
+      typeof savedHouseId ===
+        "number"
+    ) {
+      setHouseId(
+        savedHouseId
+      );
+    }
+
+    if (
+      action === "draft"
+    ) {
+      setNotice(
+        isExistingHouse
+          ? "草稿已更新。"
+          : "草稿已保存。"
+      );
+    } else {
+      setSubmitted(true);
+
+      setNotice(
+        "房源已提交审核。审核通过后才会公开显示。"
+      );
+    }
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  } catch (error) {
+    console.error(
+      "[House save error]",
+      error
+    );
+
+    setError(
+      error instanceof Error
+        ? error.message
+        : "房源保存失败，请稍后重试。"
+    );
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  } finally {
+    setSaving(false);
+  }
+}
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -734,7 +1101,9 @@ export default function NewHousePage() {
                     text-blue-400
                   "
                 >
-                  NEW HOUSE
+                  {houseId
+                    ? "EDIT HOUSE"
+                    : "NEW HOUSE"}
                 </p>
 
                 <h1
@@ -746,7 +1115,9 @@ export default function NewHousePage() {
                     text-white
                   "
                 >
-                  发布房源
+                  {houseId
+                    ? "编辑房源"
+                    : "发布房源"}
                 </h1>
 
                 <p
@@ -757,8 +1128,9 @@ export default function NewHousePage() {
                     text-slate-400
                   "
                 >
-                  填写真实的房源信息。你可以先保存草稿，
-                  确认完成后再提交审核。
+                  {houseId
+                    ? "继续完善这套房源，修改内容会保存到原来的草稿。"
+                    : "填写真实的房源信息。你可以先保存草稿，确认完成后再提交审核。"}
                 </p>
               </div>
             </div>
@@ -782,6 +1154,13 @@ export default function NewHousePage() {
             "
           >
             <div className="min-w-0 space-y-6">
+
+              {loadingDraft && (
+                <MessageBox type="success">
+                  正在读取房源草稿...
+                </MessageBox>
+              )}
+
               {/* Messages */}
 
               {error && (
@@ -1822,7 +2201,11 @@ export default function NewHousePage() {
                 <div className="mt-5 space-y-2.5">
                   <button
                     type="button"
-                    disabled={saving}
+                    disabled={
+                      saving ||
+                      submitted ||
+                      loadingDraft
+                    }
                     onClick={() =>
                       void saveHouse("draft")
                     }
@@ -1849,15 +2232,23 @@ export default function NewHousePage() {
                   >
                     <Save size={17} />
 
-                    {saving
-                      ? "处理中..."
-                      : "保存草稿"}
+                    {submitted
+                      ? "已提交审核"
+                      : saving
+                        ? "处理中..."
+                        : houseId
+                          ? "更新草稿"
+                          : "保存草稿"}
                   </button>
 
                   <button
                     type="submit"
-                    disabled={saving}
-                    className="
+                    disabled={
+                      saving ||
+                      submitted ||
+                      loadingDraft
+                    }
+                      className="
                       inline-flex
                       w-full
                       items-center
@@ -1880,9 +2271,11 @@ export default function NewHousePage() {
                   >
                     <Send size={17} />
 
-                    {saving
-                      ? "处理中..."
-                      : "提交审核"}
+                    {submitted
+                      ? "已提交审核"
+                      : saving
+                        ? "处理中..."
+                        : "提交审核"}
                   </button>
                 </div>
               </div>
