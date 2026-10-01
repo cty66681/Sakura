@@ -40,6 +40,10 @@ export interface HouseCardProps {
   foreignerAllowed?: boolean | null;
   studentAllowed?: boolean | null;
 
+  publisherName?: string;
+  publisherCompany?: string;
+  publisherVerified?: boolean;
+
   href?: string;
 }
 
@@ -142,6 +146,10 @@ export default function HouseCard({
 
   foreignerAllowed = null,
   studentAllowed = null,
+
+  publisherName = "",
+  publisherCompany = "",
+  publisherVerified = false,
 
   href,
 }: HouseCardProps) {
@@ -474,6 +482,99 @@ export default function HouseCard({
               {location}
             </span>
           </div>
+
+          {/* =====================================================
+                  Publisher
+              ===================================================== */}
+
+              {(publisherName || publisherCompany) && (
+                <div
+                  className="
+                    mt-4
+                    flex
+                    items-center
+                    gap-3
+                    rounded-xl
+                    border
+                    border-slate-100
+                    bg-slate-50
+                    px-3
+                    py-3
+                  "
+                >
+                  <div
+                    className="
+                      flex
+                      h-9
+                      w-9
+                      shrink-0
+                      items-center
+                      justify-center
+                      rounded-full
+                      bg-white
+                      text-slate-500
+                      shadow-sm
+                    "
+                  >
+                    <Building2 size={17} />
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className="
+                          truncate
+                          text-sm
+                          font-bold
+                          text-slate-800
+                        "
+                      >
+                        {publisherName || "发布者"}
+                      </span>
+
+                      {publisherVerified && (
+                        <BadgeCheck
+                          size={15}
+                          className="
+                            shrink-0
+                            text-blue-500
+                          "
+                        />
+                      )}
+                    </div>
+
+                    {publisherCompany && (
+                      <p
+                        className="
+                          mt-0.5
+                          truncate
+                          text-xs
+                          text-slate-500
+                        "
+                      >
+                        {publisherCompany}
+                      </p>
+                    )}
+                  </div>
+
+                  {publisherVerified && (
+                    <span
+                      className="
+                        shrink-0
+                        rounded-full
+                        bg-blue-50
+                        px-2
+                        py-1
+                        text-[11px]
+                        font-bold
+                        text-blue-600
+                      "
+                    >
+                      已认证
+                    </span>
+                  )}
+                </div>
+              )}
 
           {/* =====================================================
               Verification

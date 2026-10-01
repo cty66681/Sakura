@@ -1,0 +1,162 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum HouseListingStatus {
+  available
+  paused
+  rented
+  expired
+  hidden
+}
+
+enum HouseModerationStatus {
+  draft
+  pending
+  approved
+  rejected
+  hidden
+}
+
+model User {
+  id          String   @id @default(cuid())
+  email       String?  @unique
+  displayName String?
+  role        UserRole @default(USER)
+
+  publisher   Publisher?
+  houseImages HouseImage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Publisher {
+  id String @id @default(cuid())
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name     String
+  company  String?
+  verified Boolean @default(false)
+
+  houses House[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("publishers")
+}
+
+model House {
+  id Int @id @default(autoincrement())
+
+  publisherId String
+  publisher   Publisher @relation(fields: [publisherId], references: [id], onDelete: Restrict)
+
+  title String @db.VarChar(80)
+
+  rent          Int
+  managementFee Int @default(0)
+
+  depositMonths  Decimal @default(0) @db.Decimal(4, 1)
+  keyMoneyMonths Decimal @default(0) @db.Decimal(4, 1)
+
+  layout String
+
+  area Decimal @db.Decimal(8, 2)
+
+  prefecture String
+  city       String
+  address    String
+
+  station     String?
+  walkMinutes Int?
+
+  floor     String?
+  builtYear Int?
+  direction String?
+  structure String?
+
+  availableFrom DateTime? @db.Date
+
+  foreignerAllowed Boolean?
+  studentAllowed   Boolean?
+
+  description String @db.Text
+
+  features String[] @default([])
+  tags     String[] @default([])
+
+  listingStatus    HouseListingStatus    @default(available)
+  moderationStatus HouseModerationStatus @default(draft)
+
+  lastVerifiedAt DateTime?
+  expiresAt      DateTime?
+
+  contactName String
+  company     String?
+  phone       String
+  email       String?
+
+  views Int @default(0)
+
+  publishedAt DateTime?
+
+  images HouseImage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([publisherId])
+  @@index([moderationStatus])
+  @@index([listingStatus])
+  @@index([prefecture])
+  @@index([city])
+  @@index([publishedAt])
+
+  @@map("houses")
+}
+
+model HouseImage {
+  id String @id @default(cuid())
+
+  houseId Int?
+  house   House? @relation(fields: [houseId], references: [id], onDelete: Cascade)
+
+  uploaderId String
+  uploader   User @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+
+  url        String
+  storageKey String
+
+  mimeType  String?
+  sizeBytes Int?
+
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([houseId])
+  @@index([uploaderId])
+
+  @@map("house_images")
+}

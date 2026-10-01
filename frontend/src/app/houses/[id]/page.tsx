@@ -11,6 +11,9 @@ import {
   MapPin,
   PauseCircle,
   ShieldCheck,
+  BadgeCheck,
+  Building2,
+  UserRound,
 } from "lucide-react";
 
 import Container from "@/components/layout/Container";
@@ -24,7 +27,6 @@ import HouseContact from "@/components/house/HouseContact";
 import CommentSection from "@/components/comments/CommentSection";
 
 import {
-  houses,
   HOUSE_LISTING_STATUS_LABELS,
   type HouseListingStatus,
 } from "@/data/houses";
@@ -37,6 +39,72 @@ interface PageProps {
   searchParams: Promise<{
     returnTo?: string;
   }>;
+}
+
+interface ApiHouse {
+  id: number;
+
+  publisher: {
+    id: string;
+    name: string;
+    company: string | null;
+    verified: boolean;
+  };
+
+  title: string;
+
+  rent: number;
+  managementFee: number;
+
+  depositMonths: number;
+  keyMoneyMonths: number;
+
+  layout: string;
+  area: number;
+
+  prefecture: string;
+  city: string;
+
+  station: string | null;
+  walkMinutes: number | null;
+
+  floor: string | null;
+  builtYear: number | null;
+  direction: string | null;
+  structure: string | null;
+
+  availableFrom: string | null;
+
+  foreignerAllowed: boolean | null;
+  studentAllowed: boolean | null;
+
+  description: string;
+
+  features: string[];
+  tags: string[];
+
+  listingStatus: HouseListingStatus;
+
+  lastVerifiedAt: string | null;
+  expiresAt: string | null;
+
+  views: number;
+
+  publishedAt: string | null;
+  createdAt: string;
+
+  images: {
+    id: string;
+    url: string;
+    sortOrder: number;
+  }[];
+
+  location: string;
+}
+
+interface HouseApiResponse {
+  success: boolean;
+  data: ApiHouse;
 }
 
 /*
@@ -57,6 +125,17 @@ interface PageProps {
 |--------------------------------------------------------------------------
 */
 
+function formatYen(value: number) {
+  return `¥${value.toLocaleString("ja-JP")}`;
+}
+
+function formatMonths(value: number) {
+  return `${value}个月`;
+}
+
+function formatArea(value: number) {
+  return `${value}㎡`;
+}
 
 function getVerifiedLabel(
   lastVerifiedAt: string | null
@@ -173,37 +252,143 @@ function getStatusClassName(
   `;
 }
 
-export default async function HouseDetailPage({
-  params,
-  searchParams,
-}: PageProps) {
-  const { id } = await params;
+  export default async function HouseDetailPage({
+    params,
+    searchParams,
+  }: PageProps) {
+    const { id } = await params;
 
-  const { returnTo } =
-    await searchParams;
+    const { returnTo } =
+      await searchParams;
 
-  const safeReturnTo =
-    returnTo === "/houses" ||
-    returnTo?.startsWith(
-      "/houses?"
-    ) ||
-    returnTo?.startsWith(
-      "/houses#"
+    const safeReturnTo =
+      returnTo === "/houses" ||
+      returnTo?.startsWith(
+        "/houses?"
+      ) ||
+      returnTo?.startsWith(
+        "/houses#"
+      );
+
+    const returnHref =
+      safeReturnTo && returnTo
+        ? returnTo
+        : "/houses#house-results";
+
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/api/houses/${id}`,
+      {
+        cache: "no-store",
+      }
     );
 
-  const returnHref =
-    safeReturnTo && returnTo
-      ? returnTo
-      : "/houses#house-results";
+    if (!response.ok) {
+      notFound();
+    }
 
-  const house = houses.find(
-    (item) =>
-      item.id === Number(id)
-  );
+    const result: HouseApiResponse =
+      await response.json();
 
-  if (!house) {
-    notFound();
-  }
+    if (!result.success || !result.data) {
+      notFound();
+    }
+
+    const apiHouse = result.data;
+
+    const house = {
+    id: apiHouse.id,
+
+    publisherId: apiHouse.publisher.id,
+    publisherName: apiHouse.publisher.name,
+    publisherCompany:
+      apiHouse.publisher.company ?? "",
+    publisherVerified:
+      apiHouse.publisher.verified,
+
+    title: apiHouse.title,
+
+    rent: formatYen(apiHouse.rent),
+
+    managementFee:
+      apiHouse.managementFee > 0
+        ? formatYen(apiHouse.managementFee)
+        : "无",
+
+    deposit:
+      formatMonths(
+        apiHouse.depositMonths
+      ),
+
+    keyMoney:
+      formatMonths(
+        apiHouse.keyMoneyMonths
+      ),
+
+    layout: apiHouse.layout,
+
+    area: formatArea(apiHouse.area),
+
+    location: apiHouse.location,
+
+    station:
+      apiHouse.station ?? "",
+
+    walkMinutes:
+      apiHouse.walkMinutes,
+
+    floor:
+      apiHouse.floor ?? "",
+
+    builtYear:
+      apiHouse.builtYear
+        ? String(apiHouse.builtYear)
+        : "",
+
+    direction:
+      apiHouse.direction ?? "",
+
+    structure:
+      apiHouse.structure ?? "",
+
+    availableDate:
+      apiHouse.availableFrom ?? "",
+
+    foreignerAllowed:
+      apiHouse.foreignerAllowed,
+
+    studentAllowed:
+      apiHouse.studentAllowed,
+
+    description:
+      apiHouse.description,
+
+    tags:
+      apiHouse.tags,
+
+    listingStatus:
+      apiHouse.listingStatus,
+
+    lastVerifiedAt:
+      apiHouse.lastVerifiedAt,
+
+    expiresAt:
+      apiHouse.expiresAt,
+
+    views:
+      apiHouse.views,
+
+    publishTime:
+      apiHouse.publishedAt ??
+      apiHouse.createdAt,
+
+    images:
+      apiHouse.images
+        .sort(
+          (a, b) =>
+            a.sortOrder - b.sortOrder
+        )
+        .map((image) => image.url),
+  };
 
   /*
   |--------------------------------------------------------------------------
@@ -217,10 +402,7 @@ export default async function HouseDetailPage({
   */
 
   if (
-    house.moderationStatus !==
-      "approved" ||
-    house.listingStatus ===
-      "hidden"
+    house.listingStatus === "hidden"
   ) {
     notFound();
   }
@@ -584,6 +766,199 @@ export default async function HouseDetailPage({
                 walkMinutes={house.walkMinutes}
                 listingStatus={listingStatus}
               />
+
+              {/* Publisher */}
+
+              <div
+                className="
+                  rounded-[24px]
+                  border
+                  border-slate-200
+                  bg-white
+                  p-5
+                  shadow-sm
+                "
+              >
+                <p
+                  className="
+                    text-xs
+                    font-bold
+                    uppercase
+                    tracking-[0.16em]
+                    text-blue-600
+                  "
+                >
+                  PUBLISHER
+                </p>
+
+                <h3
+                  className="
+                    mt-2
+                    font-black
+                    text-slate-900
+                  "
+                >
+                  发布者信息
+                </h3>
+
+                <div
+                  className="
+                    mt-5
+                    flex
+                    items-center
+                    gap-3
+                  "
+                >
+                  <div
+                    className="
+                      flex
+                      h-12
+                      w-12
+                      shrink-0
+                      items-center
+                      justify-center
+                      rounded-2xl
+                      bg-slate-100
+                      text-slate-500
+                    "
+                  >
+                    {house.publisherCompany ? (
+                      <Building2 size={22} />
+                    ) : (
+                      <UserRound size={22} />
+                    )}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div
+                      className="
+                        flex
+                        items-center
+                        gap-2
+                      "
+                    >
+                      <p
+                        className="
+                          truncate
+                          text-sm
+                          font-black
+                          text-slate-900
+                        "
+                      >
+                        {house.publisherName || "发布者"}
+                      </p>
+
+                      {house.publisherVerified && (
+                        <BadgeCheck
+                          size={17}
+                          className="
+                            shrink-0
+                            text-blue-500
+                          "
+                        />
+                      )}
+                    </div>
+
+                    {house.publisherCompany && (
+                      <p
+                        className="
+                          mt-1
+                          truncate
+                          text-xs
+                          text-slate-500
+                        "
+                      >
+                        {house.publisherCompany}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div
+                  className="
+                    mt-4
+                    flex
+                    items-center
+                    justify-between
+                    rounded-xl
+                    bg-slate-50
+                    px-3
+                    py-3
+                  "
+                >
+                  <span
+                    className="
+                      text-xs
+                      font-medium
+                      text-slate-500
+                    "
+                  >
+                    认证状态
+                  </span>
+
+                  {house.publisherVerified ? (
+                    <span
+                      className="
+                        inline-flex
+                        items-center
+                        gap-1.5
+                        text-xs
+                        font-bold
+                        text-blue-600
+                      "
+                    >
+                      <BadgeCheck size={14} />
+                      已认证
+                    </span>
+                  ) : (
+                    <span
+                      className="
+                        text-xs
+                        font-bold
+                        text-slate-500
+                      "
+                    >
+                      未认证
+                    </span>
+                  )}
+                </div>
+
+                <p
+                  className="
+                    mt-4
+                    text-xs
+                    leading-5
+                    text-slate-400
+                  "
+                >
+                  联系和签约前，请自行确认发布者身份以及房源相关资料。
+                </p>
+                <Link
+                  href={`/publishers/${house.publisherId}`}
+                  className="
+                    mt-4
+                    flex
+                    w-full
+                    items-center
+                    justify-center
+                    rounded-xl
+                    border
+                    border-slate-200
+                    bg-white
+                    px-4
+                    py-3
+                    text-sm
+                    font-bold
+                    text-slate-700
+                    transition
+                    hover:border-blue-200
+                    hover:bg-blue-50
+                    hover:text-blue-600
+                  "
+                >
+                  查看发布者主页
+                </Link>
+              </div>
 
               {/* Summary */}
 

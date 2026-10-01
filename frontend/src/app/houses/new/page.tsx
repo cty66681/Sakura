@@ -605,30 +605,40 @@ export default function NewHousePage() {
             : ("pending" as const),
       };
 
-      /*
-      TODO [API - POST] POST /api/houses
+      
+      //TODO [API - POST] POST /api/houses
 
-      await fetch("/api/houses", {
+      const response = await fetch("/api/houses", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),
       });
-      */
 
-      console.log("Mock house publish:", payload);
+      const result = await response.json();
 
-      await new Promise((resolve) => {
-        window.setTimeout(resolve, 350);
-      });
+      if (!response.ok) {
+        console.error(
+          "[POST /api/houses]",
+          result
+        );
+
+        throw new Error(
+          result?.error ||
+            "房源保存失败，请稍后重试。"
+        );
+      }
+
+      console.log(
+        "[House saved]",
+        result.house
+      );
 
       if (action === "draft") {
-        setNotice("草稿已保存。当前为 Mock 模式，刷新页面后不会保留。");
+        setNotice("草稿已保存。");
       } else {
-        setNotice(
-          "房源已提交审核。当前为 Mock 模式，接入后端后会进入「审核中」状态。"
-        );
+        setNotice("房源已提交审核。");
       }
 
       window.scrollTo({

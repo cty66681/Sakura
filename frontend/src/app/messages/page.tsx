@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Suspense,
   Fragment,
   type FormEvent,
   useEffect,
@@ -390,7 +391,7 @@ function getMessageTimeLabel(
   return null;
 }
 
-export default function AccountMessagesPage() {
+ function MessagesPageContent() {
 
     const router = useRouter();
     const searchParams =
@@ -1900,5 +1901,13 @@ export default function AccountMessagesPage() {
         </Container>
       </section>
     </main>
+  );
+}
+
+export default function MessagesPage() {
+  return (
+    <Suspense fallback={null}>
+      <MessagesPageContent />
+    </Suspense>
   );
 }

@@ -6,6 +6,7 @@ import {
   useSearchParams,
 } from "next/navigation";
 import {
+  Suspense,
   type ReactNode,
   useMemo,
   useState,
@@ -253,7 +254,7 @@ const houseListingStatusOptions = [
   },
 ] as const;
 
-export default function AccountPostsPage() {
+function AccountPostsPageContent() {
   const searchParams = useSearchParams();
 
   const router = useRouter();
@@ -1454,6 +1455,24 @@ export default function AccountPostsPage() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function AccountPostsPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-slate-50">
+          <Container>
+            <div className="px-4 py-10">
+              <div className="h-40 animate-pulse rounded-[24px] border border-slate-200 bg-white" />
+            </div>
+          </Container>
+        </main>
+      }
+    >
+      <AccountPostsPageContent />
+    </Suspense>
   );
 }
 

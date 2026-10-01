@@ -2,7 +2,12 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import type { ReactNode } from "react";
+
+import {
+  Suspense,
+  type ReactNode,
+} from "react";
+
 import {
   ArrowLeft,
   ArrowRight,
@@ -105,7 +110,7 @@ const publishOptions: PublishOption[] = [
   },
 ];
 
-export default function PublishPage() {
+function PublishPageContent() {
   const searchParams = useSearchParams();
 
   const requestedType = getPublishType(
@@ -612,6 +617,24 @@ export default function PublishPage() {
         </Container>
       </section>
     </main>
+  );
+}
+
+export default function PublishPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-slate-50">
+          <Container>
+            <div className="px-4 py-10">
+              <div className="h-40 animate-pulse rounded-[24px] border border-slate-200 bg-white" />
+            </div>
+          </Container>
+        </main>
+      }
+    >
+      <PublishPageContent />
+    </Suspense>
   );
 }
 

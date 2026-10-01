@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Suspense,
   useMemo,
   useRef,
   useState,
@@ -841,7 +842,7 @@ function getCategoryCount(
    PAGE
 ========================================================= */
 
-export default function JobsPage() {
+function JobsPageContent() {
   const [searchInput, setSearchInput] =
     useState("");
 
@@ -2860,6 +2861,14 @@ export default function JobsPage() {
         </Container>
       </section>
     </main>
+  );
+}
+
+export default function JobsPage() {
+  return (
+    <Suspense fallback={null}>
+      <JobsPageContent />
+    </Suspense>
   );
 }
 

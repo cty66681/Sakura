@@ -1,7 +1,10 @@
 "use client";
 
 import {
+  Suspense,
+  useEffect,
   useRef,
+  useState,
 } from "react";
 import {
   ChevronDown,
@@ -17,13 +20,9 @@ import Container from "@/components/layout/Container";
 import HouseCard from "@/components/home/HouseCard";
 
 import {
-  houses,
+  houses as mockHouses,
   type HouseFeature,
 } from "@/data/houses";
-
-import {
-  getPublisherById,
-} from "@/data/publishers";
 
 import {
   normalizeHouseSearchText,
@@ -44,6 +43,86 @@ import {
 } from "next/navigation";
 
 const PAGE_SIZE = 6;
+
+type HouseItem =
+  (typeof mockHouses)[number] & {
+    publisherName?: string;
+    publisherCompany?: string;
+    publisherVerified?: boolean;
+  };
+
+interface ApiHouse {
+  id: number;
+
+  publisher: {
+    id: string;
+    name: string;
+    company: string | null;
+    verified: boolean;
+  };
+
+  title: string;
+
+  rent: number;
+  managementFee: number;
+
+  depositMonths: number;
+  keyMoneyMonths: number;
+
+  layout: string;
+  area: number;
+
+  prefecture: string;
+  city: string;
+
+  station: string | null;
+  walkMinutes: number | null;
+
+  floor: string | null;
+  builtYear: number | null;
+  direction: string | null;
+  structure: string | null;
+
+  availableFrom: string | null;
+
+  foreignerAllowed: boolean | null;
+  studentAllowed: boolean | null;
+
+  description: string;
+
+  features: string[];
+  tags: string[];
+
+  listingStatus:
+    | "available"
+    | "paused"
+    | "rented"
+    | "expired"
+    | "hidden";
+
+  lastVerifiedAt: string | null;
+  expiresAt: string | null;
+
+  views: number;
+
+  publishedAt: string | null;
+  createdAt: string;
+
+  images: {
+    id: string;
+    url: string;
+    sortOrder: number;
+  }[];
+
+  location: string;
+}
+
+interface HousesApiResponse {
+  success: boolean;
+  data: ApiHouse[];
+}
+
+
 
 
 const regions = [
@@ -135,8 +214,193 @@ type SortValue =
 |--------------------------------------------------------------------------
 */
 
+  function formatMonths(
+  value: number
+) {
+  if (value === 0) {
+    return "0个月";
+  }
+
+  return `${value}个月`;
+}
+
+function formatYen(
+  value: number
+) {
+  return `¥${value.toLocaleString(
+    "ja-JP"
+  )}`;
+}
+
+function formatArea(
+  value: number
+) {
+  return `${value}㎡`;
+}
+
+function mapApiHouseToHouseItem(
+  house: ApiHouse
+): HouseItem {
+  const publishTime =
+    house.publishedAt ??
+    house.createdAt;
+
+  const features =
+    house.features.filter(
+      (feature): feature is HouseFeature =>
+        [
+          "near_station",
+          "pet_allowed",
+          "no_key_money",
+          "no_deposit",
+          "move_in_ready",
+          "furnished",
+          "separate_bath_toilet",
+          "auto_lock",
+          "delivery_box",
+          "free_internet",
+          "parking",
+          "bicycle_parking",
+        ].includes(feature)
+    );
+
+  return {
+
+    publisherName: house.publisher.name,
+
+    publisherCompany: house.publisher.company ?? "",
+
+    publisherVerified: house.publisher.verified,
+
+    id: house.id,
+
+    publisherId:
+      house.publisher.id,
+
+    title: house.title,
+
+    prefecture:
+      house.prefecture,
+
+    city: house.city,
+
+    station:
+      house.station ?? "",
+
+    walkMinutes:
+      house.walkMinutes,
+
+    rentValue:
+      house.rent,
+
+    managementFeeValue:
+      house.managementFee,
+
+    depositMonths:
+      house.depositMonths,
+
+    keyMoneyMonths:
+      house.keyMoneyMonths,
+
+    rent:
+      formatYen(
+        house.rent
+      ),
+
+    managementFee:
+      house.managementFee > 0
+        ? formatYen(
+            house.managementFee
+          )
+        : "无",
+
+    deposit:
+      formatMonths(
+        house.depositMonths
+      ),
+
+    keyMoney:
+      formatMonths(
+        house.keyMoneyMonths
+      ),
+
+    layout:
+      house.layout,
+
+    areaValue:
+      house.area,
+
+    area:
+      formatArea(
+        house.area
+      ),
+
+    location:
+      house.location,
+
+    floor:
+      house.floor ?? "",
+
+    builtYear:
+      house.builtYear
+        ? String(
+            house.builtYear
+          )
+        : "",
+
+    direction:
+      house.direction ?? "",
+
+    structure:
+      house.structure ?? "",
+
+    listingStatus:
+      house.listingStatus,
+
+    moderationStatus:
+      "approved",
+
+    lastVerifiedAt:
+      house.lastVerifiedAt,
+
+    expiresAt:
+      house.expiresAt,
+
+    availableFrom:
+      house.availableFrom,
+
+    availableDate:
+      house.availableFrom ?? "",
+
+    foreignerAllowed:
+      house.foreignerAllowed,
+
+    studentAllowed:
+      house.studentAllowed,
+
+    publishTime,
+
+    views:
+      house.views,
+
+    images:
+      house.images.map(
+        (image) =>
+          image.url
+      ),
+
+    features,
+
+    tags:
+      house.tags,
+
+    description:
+      house.description,
+  };
+}
+
   function getHouseSearchMatchScore(
-    house: (typeof houses)[number],
+     house: HouseItem,
     search: string
   ) {
     if (!search.trim()) {
@@ -195,9 +459,7 @@ type SortValue =
     );
 
     const publisherCompany =
-      getPublisherById(
-        house.publisherId
-      )?.company ?? "";
+      house.publisherCompany ?? "";
 
     const companyText =
       normalizeHouseSearchText(
@@ -366,7 +628,7 @@ type SortValue =
   }
 
   function sortHousesBySearchRelevance(
-    list: typeof houses,
+    list: HouseItem[],
     search: string
   ) {
     return [...list].sort(
@@ -426,10 +688,82 @@ type SortValue =
     return text === "";
   }
 
-export default function HousesPage() {
+function HousesPageContent() {
 
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  const [
+  houses,
+  setHouses,
+] = useState<HouseItem[]>([]);
+
+const [
+  loading,
+  setLoading,
+] = useState(true);
+
+const [
+  loadError,
+  setLoadError,
+] = useState("");
+
+useEffect(() => {
+  let cancelled = false;
+
+  async function loadHouses() {
+    try {
+      setLoading(true);
+      setLoadError("");
+
+      const response =
+        await fetch(
+          "/api/houses?limit=50"
+        );
+
+      const result:
+        HousesApiResponse =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          "房源读取失败"
+        );
+      }
+
+      if (cancelled) {
+        return;
+      }
+
+      setHouses(
+        result.data.map(
+          mapApiHouseToHouseItem
+        )
+      );
+    } catch (error) {
+      console.error(
+        "[GET /api/houses]",
+        error
+      );
+
+      if (!cancelled) {
+        setLoadError(
+          "房源加载失败，请稍后重试。"
+        );
+      }
+    } finally {
+      if (!cancelled) {
+        setLoading(false);
+      }
+    }
+  }
+
+  loadHouses();
+
+  return () => {
+    cancelled = true;
+  };
+}, []);
 
   const pageParam = Number(
     searchParams.get("page")
@@ -766,9 +1100,7 @@ function clearFilters() {
     result = result.filter(
       (house) => {
         const publisherCompany =
-          getPublisherById(
-            house.publisherId
-          )?.company ?? "";
+          house.publisherCompany ?? "";
 
         const houseText =
           normalizeHouseSearchText(
@@ -2186,6 +2518,14 @@ function clearFilters() {
         </Container>
       </section>
     </main>
+  );
+}
+
+export default function HousesPage() {
+  return (
+    <Suspense fallback={null}>
+      <HousesPageContent />
+    </Suspense>
   );
 }
 
